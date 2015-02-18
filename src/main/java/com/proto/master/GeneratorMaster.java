@@ -51,7 +51,6 @@ public class GeneratorMaster {
             JSONParser jsonParser = new JSONParser();
             JSONObject jReq = null;
             try {
-                jsonParser.reset();
                 jReq = (JSONObject) jsonParser.parse(reqContent);
             } catch (ParseException e) {
                 e.printStackTrace();
