@@ -47,6 +47,7 @@ public class GeneratorMaster {
             System.out.println("[GeneratorMaster] Request received: " + reqContent);
 
             // Parsing JSON request
+            // Creating parser for each request, as static parser seem to throw error on consecutive requests
             JSONParser jsonParser = new JSONParser();
             JSONObject jReq = null;
             try {
@@ -71,6 +72,29 @@ public class GeneratorMaster {
 
     }
 
+    /**
+     * Scala closure to divide and assign jobs to slaves
+     */
+    public class GenerateVideos extends Function0<Object> {
+
+        public Object apply() {
+            // Some pause to let the HTTP listening server up
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            
+            // Assign jobs to slaves
+            for (int i = 0; i < 5; ++i) {
+                generateVideo();
+            }
+            
+            return new Object();
+        }
+
+    }
+    
     /**
      * Asynchronously updates AdServing Redis cache
      */
@@ -101,30 +125,6 @@ public class GeneratorMaster {
 
     }
     
-    /**
-     * Scala closure to divide and assign jobs to slaves
-     */
-    public class GenerateVideos extends Function0<Object> {
-
-        public Object apply() {
-            // Some pause to let the HTTP listening server up
-            try {
-                Thread.sleep(3000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            
-            // Assign jobs to slaves
-            for (int i = 0; i < 5; ++i) {
-                generateVideo();
-            }
-            
-            return new Object();
-        }
-
-    }
-
-
     private class CdnInfo {
         // Type for expected information returned after the CDN push
     }
