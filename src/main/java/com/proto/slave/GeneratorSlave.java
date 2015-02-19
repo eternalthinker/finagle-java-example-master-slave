@@ -160,8 +160,8 @@ public class GeneratorSlave {
     }
 
     public static void main(String[] args) {
-        GeneratorSlave vidGenServer = new GeneratorSlave();
-        vidGenServer.start();
+        GeneratorSlave slaveServer = new GeneratorSlave();
+        slaveServer.start();
     }
 
 }

@@ -77,9 +77,11 @@ public class GeneratorMaster {
     public class GenerateVideos extends Function0<Object> {
 
         public Object apply() {
-            // Some pause to let the HTTP listening server up
+            // Some pause to make sure the HTTP listening server is up
+            // If we're really not expecting any immediate requests back from slave,
+            // then this can be removed
             try {
-                Thread.sleep(3000);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -220,14 +222,12 @@ public class GeneratorMaster {
     }
 
     public static void main(String[] args) {
-        GeneratorMaster vidServer = new GeneratorMaster();
+        GeneratorMaster masterServer = new GeneratorMaster();
         
         // Calling the async job assignment thread before the blocking start() call
-        // Now the below thread sleeps for a few seconds to let the start() call happen and HTTP server up
-        // Is there a better way?
-        vidServer.generateAllVideos();
+        masterServer.generateAllVideos();
         
-        vidServer.start();
+        masterServer.start();
     }
 
 }
