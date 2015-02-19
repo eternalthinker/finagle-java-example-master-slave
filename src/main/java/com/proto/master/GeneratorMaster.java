@@ -148,7 +148,7 @@ public class GeneratorMaster {
      * Asynchronously perform job assignment to slaves in thread pool
      */
     private void generateAllVideos() {
-        ExecutorService pool = Executors.newFixedThreadPool(5);
+        ExecutorService pool = Executors.newFixedThreadPool(1);
         ExecutorServiceFuturePool futurePool = new ExecutorServiceFuturePool(pool);
         
         Future<Object> jobResultF = futurePool.apply(new GenerateVideos());

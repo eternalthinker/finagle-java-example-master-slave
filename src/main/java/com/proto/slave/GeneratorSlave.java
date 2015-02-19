@@ -88,16 +88,17 @@ public class GeneratorSlave {
     }
     // End of inner classes
     
+    private ExecutorServiceFuturePool futurePool;
+    
     public GeneratorSlave() {
+        ExecutorService pool = Executors.newFixedThreadPool(10);
+        futurePool = new ExecutorServiceFuturePool(pool);
     }
     
     /**
      * Asynchronously runs video generation job in thread pool
      */
     private void generateVideo() {
-        ExecutorService pool = Executors.newFixedThreadPool(10);
-        ExecutorServiceFuturePool futurePool = new ExecutorServiceFuturePool(pool);
-        
         Future<Object> videoGenResultF = futurePool.apply(new VideoGenerator());
         
         videoGenResultF.addEventListener(new FutureEventListener<Object>() {
