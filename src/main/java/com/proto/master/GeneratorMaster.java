@@ -224,9 +224,13 @@ public class GeneratorMaster {
     public static void main(String[] args) {
         GeneratorMaster masterServer = new GeneratorMaster();
         
-        // Calling the async job assignment thread before the blocking start() call
+        // Calling the job assignment thread before the blocking start() call
+        // Once this call is made, requests are sent out to slaves, 
+        // and we can start expecting job reports (not immediately in practice).
+        // But note that the master HTTP server is not up while creating this thread.
         masterServer.generateAllVideos();
         
+        // Starting master HTTP server
         masterServer.start();
     }
 
