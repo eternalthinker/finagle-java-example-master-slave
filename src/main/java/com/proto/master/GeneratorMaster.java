@@ -89,58 +89,14 @@ public class GeneratorMaster {
         }
 
     }
-    
-    /**
-     * Asynchronously updates AdServing Redis cache
-     */
-    private class CacheUpdate extends Function<CdnInfo, Future<CdnInfo>> {
-        
-        private RedisCache redisCache;
-        
-        public CacheUpdate() {
-            redisCache = new RedisCache("localhost", 7000);
-        }
-
-        public Future<CdnInfo> apply(CdnInfo cdnInfo) {
-            return Future.value(cdnInfo);
-        }
-
-    }
-    
-    /**
-     * Scala closure to run the actual CDN push operation [blocking]
-     */
-    public class CdnUpdate extends Function0<CdnInfo> {
-        Map<Object, Object> videoInfo;
-        
-        public CdnUpdate(Map<Object, Object> videoInfo) {
-            this.videoInfo = videoInfo;
-        }
-
-        public CdnInfo apply() {
-            // Push video to CDN
-            
-            CdnInfo cdnInfo = new CdnInfo();
-            cdnInfo.jobID = (String) videoInfo.get("job_id");
-            cdnInfo.cdnUrl = "//video.cdn.origin/" + videoInfo.get("pid").toString() + ".flv";
-            
-            System.out.println("[GeneratorMaster] CDN push completed for job: " + cdnInfo.jobID);
-            
-            return cdnInfo;
-        }
-
-    }
-    
-    private class CdnInfo {
-        public String cdnUrl;
-        public String jobID;
-    }
     // End of inner classes
 
     private ListeningServer server;
+    private RedisCache redisCache;
     private Random rand = new Random(); // Only for testing, remove later
     
     public GeneratorMaster() {
+        redisCache = new RedisCache("localhost", 7000);
     }
     
     /**
@@ -179,35 +135,23 @@ public class GeneratorMaster {
      * Asynchronously performs follow up operations of video creation
      * @param request Job complete report from slave
      */
-    private void handleSlaveReport(Map<Object, Object> jReq) {
-        Future<CdnInfo> cdnResponseF = updateCdn(jReq);
+    private void handleSlaveReport(final Map<Object, Object> jReq) {
         
-        Future<CdnInfo> cacheResponseF = cdnResponseF.flatMap(new CacheUpdate());
+        // Update Redis Cache
+        Future<Object> cacheResponseF = Future.value(new Object());
         
-        cacheResponseF.addEventListener(new FutureEventListener<CdnInfo>() {
+        cacheResponseF.addEventListener(new FutureEventListener<Object>() {
 
             public void onFailure(Throwable e) {
                 e.printStackTrace();
             }
 
-            public void onSuccess(CdnInfo cacheResult) {
-                System.out.println("[GeneratorMaster] Cache update done. Sequence completed for job:" + cacheResult.jobID);
+            public void onSuccess(Object cacheResult) {
+                System.out.println("[GeneratorMaster] Cache update done. Sequence completed for job:" + jReq.get("job_id").toString());
             }
         });
     }
     
-    /**
-     * Asynchronously performs CDN push in thread pool
-     * @return Future of CDN push result
-     */
-    private Future<CdnInfo> updateCdn(Map<Object, Object> videoInfo) {
-        ExecutorService pool = Executors.newFixedThreadPool(4);
-        ExecutorServiceFuturePool futurePool = new ExecutorServiceFuturePool(pool);
-        
-        Future<CdnInfo> cdnResultF = futurePool.apply(new CdnUpdate(videoInfo));
-        return cdnResultF;
-    }
-
     private HttpRequest createJsonRequest(String content) {
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
         ChannelBuffer buffer = ChannelBuffers.copiedBuffer(content, UTF_8);

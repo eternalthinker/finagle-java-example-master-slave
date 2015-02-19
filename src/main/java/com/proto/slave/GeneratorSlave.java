@@ -63,7 +63,7 @@ public class GeneratorSlave {
             }
             
             JSONObject jRes = new JSONObject();
-            jRes.put("type", "error");
+            jRes.put("type", "ack");
             HttpResponse response = createJsonResponse(jRes.toJSONString());
             
             return Future.value(response);
