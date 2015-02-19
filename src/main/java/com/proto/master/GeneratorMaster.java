@@ -3,6 +3,9 @@ package com.proto.master;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.net.InetSocketAddress;
+import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -59,7 +62,7 @@ public class GeneratorMaster {
             String type = (String) jReq.get("type");
             if (type.equals("report")) {
                 // Asynchronous call to process job completion response
-                handleSlaveReport(request);
+                handleSlaveReport((Map<Object, Object>) jReq);
             }
             
             JSONObject jRes = new JSONObject();
@@ -90,7 +93,7 @@ public class GeneratorMaster {
     /**
      * Asynchronously updates AdServing Redis cache
      */
-    private class CacheUpdate extends Function<CdnInfo, Future<Object>> {
+    private class CacheUpdate extends Function<CdnInfo, Future<CdnInfo>> {
         
         private RedisCache redisCache;
         
@@ -98,8 +101,8 @@ public class GeneratorMaster {
             redisCache = new RedisCache("localhost", 7000);
         }
 
-        public Future<Object> apply(CdnInfo cdnInfo) {
-            return Future.value(new Object());
+        public Future<CdnInfo> apply(CdnInfo cdnInfo) {
+            return Future.value(cdnInfo);
         }
 
     }
@@ -108,21 +111,34 @@ public class GeneratorMaster {
      * Scala closure to run the actual CDN push operation [blocking]
      */
     public class CdnUpdate extends Function0<CdnInfo> {
+        Map<Object, Object> videoInfo;
+        
+        public CdnUpdate(Map<Object, Object> videoInfo) {
+            this.videoInfo = videoInfo;
+        }
 
         public CdnInfo apply() {
             // Push video to CDN
             
-            return new CdnInfo();
+            CdnInfo cdnInfo = new CdnInfo();
+            cdnInfo.jobID = (String) videoInfo.get("job_id");
+            cdnInfo.cdnUrl = "//video.cdn.origin/" + videoInfo.get("pid").toString() + ".flv";
+            
+            System.out.println("[GeneratorMaster] CDN push completed for job: " + cdnInfo.jobID);
+            
+            return cdnInfo;
         }
 
     }
     
     private class CdnInfo {
-        // Type for expected information returned after the CDN push
+        public String cdnUrl;
+        public String jobID;
     }
     // End of inner classes
 
     private ListeningServer server;
+    private Random rand = new Random(); // Only for testing, remove later
     
     public GeneratorMaster() {
     }
@@ -133,9 +149,19 @@ public class GeneratorMaster {
     private void generateVideo() {
         Service<HttpRequest, HttpResponse> client = Http.newService("localhost:8001");
         JSONObject jReq = new JSONObject();
+        
+        String pid = Integer.toString(rand.nextInt(1000));
+        String imgUrl = "//img.cdn.origin/" + pid + ".jpg";
+        String jobID = UUID.randomUUID().toString();
+
         jReq.put("type", "command");
+        jReq.put("job_id", jobID);
+        jReq.put("pid", pid);
+        jReq.put("img_url", imgUrl);
+        
         HttpRequest request = createJsonRequest(jReq.toJSONString());
         
+        System.out.println("[GeneratorMaster] Sending command for job: " + jobID);
         Future<HttpResponse> slaveAckF = client.apply(request);
     }
     
@@ -153,19 +179,19 @@ public class GeneratorMaster {
      * Asynchronously performs follow up operations of video creation
      * @param request Job complete report from slave
      */
-    private void handleSlaveReport(HttpRequest request) {
-        Future<CdnInfo> cdnResponseF = updateCdn();
+    private void handleSlaveReport(Map<Object, Object> jReq) {
+        Future<CdnInfo> cdnResponseF = updateCdn(jReq);
         
-        Future<Object> cacheResponseF = cdnResponseF.flatMap(new CacheUpdate());
+        Future<CdnInfo> cacheResponseF = cdnResponseF.flatMap(new CacheUpdate());
         
-        cacheResponseF.addEventListener(new FutureEventListener<Object>() {
+        cacheResponseF.addEventListener(new FutureEventListener<CdnInfo>() {
 
             public void onFailure(Throwable e) {
                 e.printStackTrace();
             }
 
-            public void onSuccess(Object cacheResult) {
-                System.out.println("[GeneratorMaster] Cache update done. Sequence completed");
+            public void onSuccess(CdnInfo cacheResult) {
+                System.out.println("[GeneratorMaster] Cache update done. Sequence completed for job:" + cacheResult.jobID);
             }
         });
     }
@@ -174,11 +200,11 @@ public class GeneratorMaster {
      * Asynchronously performs CDN push in thread pool
      * @return Future of CDN push result
      */
-    private Future<CdnInfo> updateCdn() {
+    private Future<CdnInfo> updateCdn(Map<Object, Object> videoInfo) {
         ExecutorService pool = Executors.newFixedThreadPool(4);
         ExecutorServiceFuturePool futurePool = new ExecutorServiceFuturePool(pool);
         
-        Future<CdnInfo> cdnResultF = futurePool.apply(new CdnUpdate());
+        Future<CdnInfo> cdnResultF = futurePool.apply(new CdnUpdate(videoInfo));
         return cdnResultF;
     }
 

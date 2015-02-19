@@ -3,6 +3,7 @@ package com.proto.slave;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.net.InetSocketAddress;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -58,10 +59,12 @@ public class GeneratorSlave {
             String type = (String) jReq.get("type");
             if (type.equals("command")) {
                 // Asynchronous call to start video generation
-                generateVideo();
+                generateVideo((Map) jReq);
             }
             
-            HttpResponse response = createJsonResponse("[payload]");
+            JSONObject jRes = new JSONObject();
+            jRes.put("type", "error");
+            HttpResponse response = createJsonResponse(jRes.toJSONString());
             
             return Future.value(response);
         }
@@ -72,21 +75,43 @@ public class GeneratorSlave {
      * Scala closure to execute the long running video generation task [blocking]
      */
     private class VideoGenerator extends Function0<Object> {
+        private Map<Object, Object> jobInfo;
+        
+        public VideoGenerator(Map<Object, Object> jobInfo) {
+            this.jobInfo = jobInfo;
+        }
 
         public Object apply() {
             // Computation-heavy video generation work
             try {
-                Thread.sleep(5000);
+                Thread.sleep(3000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            System.out.println("[GeneratorSlave] Video file generated");
             
-            return new Object();
+            String jobID = (String) jobInfo.get("job_id");
+            String pid = (String) jobInfo.get("pid");
+            String imgUrl = (String) jobInfo.get("img_url");
+            
+            System.out.println("[GeneratorSlave] Video file generated for job: " + jobID);
+            JobResult result = new JobResult();
+            result.jobID = jobID;
+            result.s3Url = "//s3.aws/bnid_" + pid + ".flv";
+            result.pid = pid;
+            
+            return result;
         }
 
     }
+    
+    private class JobResult {
+        public String pid;
+        public String jobID;
+        public String s3Url;
+    }
     // End of inner classes
+    
+    private static final int PID_COUNT = 3;
     
     private ExecutorServiceFuturePool futurePool;
     private ListeningServer server;
@@ -99,8 +124,8 @@ public class GeneratorSlave {
     /**
      * Asynchronously runs video generation job in thread pool
      */
-    private void generateVideo() {
-        Future<Object> videoGenResultF = futurePool.apply(new VideoGenerator());
+    private void generateVideo(Map<Object, Object> jobInfo) {
+        Future<Object> videoGenResultF = futurePool.apply(new VideoGenerator(jobInfo));
         
         videoGenResultF.addEventListener(new FutureEventListener<Object>() {
 
@@ -122,7 +147,12 @@ public class GeneratorSlave {
     private void notifySuccess(Object videoInfo) {
         Service<HttpRequest, HttpResponse> client = Http.newService("localhost:8000");
         JSONObject jReq = new JSONObject();
+        JobResult result = (JobResult) videoInfo;
+        
         jReq.put("type", "report");
+        jReq.put("job_id", result.jobID);
+        jReq.put("s3_url", result.s3Url);
+        jReq.put("pid", result.pid);
         HttpRequest request = createJsonRequest(jReq.toJSONString());
         
         Future<HttpResponse> masterAckF = client.apply(request);
