@@ -59,7 +59,7 @@ public class GeneratorMaster {
             String type = (String) jReq.get("type");
             if (type.equals("report")) {
                 // Asynchronous call to process job completion response
-                handleSlaveResponse(request);
+                handleSlaveReport(request);
             }
             
             JSONObject jRes = new JSONObject();
@@ -158,7 +158,7 @@ public class GeneratorMaster {
      * Asynchronously performs follow up operations of video creation
      * @param request Job complete report from slave
      */
-    private void handleSlaveResponse(HttpRequest request) {
+    private void handleSlaveReport(HttpRequest request) {
         Future<CdnInfo> cdnResponseF = updateCdn();
         
         Future<Object> cacheResponseF = cdnResponseF.flatMap(new CacheUpdate());
@@ -207,7 +207,7 @@ public class GeneratorMaster {
     
     private void start() {
         HttpMuxer muxService = new HttpMuxer().withHandler("/", new VideoGenMasterService());
-        ListeningServer server = Http.serve(new InetSocketAddress("localhost", 8000), muxService);
+        ListeningServer server = Http.serve(new InetSocketAddress("localhost", 8023), muxService);
 
         System.out.println("[GeneratorMaster] Starting..");
         try {
