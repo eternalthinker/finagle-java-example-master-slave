@@ -89,6 +89,7 @@ public class GeneratorSlave {
     // End of inner classes
     
     private ExecutorServiceFuturePool futurePool;
+    private ListeningServer server;
     
     public GeneratorSlave() {
         ExecutorService pool = Executors.newFixedThreadPool(10);
@@ -145,11 +146,14 @@ public class GeneratorSlave {
         return response;
     }
 
-    private void start() {
+    private void startServer() {
         HttpMuxer muxService = new HttpMuxer().withHandler("/", new VideoGenSlaveService());
-        ListeningServer server = Http.serve(new InetSocketAddress("localhost", 8001), muxService);
+        server = Http.serve(new InetSocketAddress("localhost", 8001), muxService);
 
-        System.out.println("[GeneratorSlave] Starting..");
+        System.out.println("[GeneratorSlave] Started..");
+    }
+    
+    private void awaitServer() {
         try {
             Await.ready(server);
         } catch (TimeoutException e) {
@@ -161,7 +165,8 @@ public class GeneratorSlave {
 
     public static void main(String[] args) {
         GeneratorSlave slaveServer = new GeneratorSlave();
-        slaveServer.start();
+        slaveServer.startServer();
+        slaveServer.awaitServer();
     }
 
 }

@@ -77,15 +77,6 @@ public class GeneratorMaster {
     public class GenerateVideos extends Function0<Object> {
 
         public Object apply() {
-            // Some pause to make sure the HTTP listening server is up
-            // If we're really not expecting any immediate requests back from slave,
-            // then this can be removed
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            
             // Assign jobs to slaves
             for (int i = 0; i < 5; ++i) {
                 generateVideo();
@@ -131,6 +122,8 @@ public class GeneratorMaster {
     }
     // End of inner classes
 
+    private ListeningServer server;
+    
     public GeneratorMaster() {
     }
     
@@ -207,11 +200,14 @@ public class GeneratorMaster {
         return response;
     }
     
-    private void start() {
+    private void startServer() {
         HttpMuxer muxService = new HttpMuxer().withHandler("/", new VideoGenMasterService());
-        ListeningServer server = Http.serve(new InetSocketAddress("localhost", 8023), muxService);
+        server = Http.serve(new InetSocketAddress("localhost", 8000), muxService);
 
-        System.out.println("[GeneratorMaster] Starting..");
+        System.out.println("[GeneratorMaster] Started..");
+    }
+    
+    private void awaitServer() {
         try {
             Await.ready(server);
         } catch (TimeoutException e) {
@@ -224,14 +220,14 @@ public class GeneratorMaster {
     public static void main(String[] args) {
         GeneratorMaster masterServer = new GeneratorMaster();
         
-        // Calling the job assignment thread before the blocking start() call
-        // Once this call is made, requests are sent out to slaves, 
-        // and we can start expecting job reports (not immediately in practice).
-        // But note that the master HTTP server is not up while creating this thread.
+        masterServer.startServer();
+        
+        // Starting the job assignment thread
+        // Once this call is made, command requests are eventually sent out to slaves, 
+        // and we can start expecting job status reports (not immediately in practice).
         masterServer.generateAllVideos();
         
-        // Starting master HTTP server
-        masterServer.start();
+        masterServer.awaitServer();
     }
 
 }
