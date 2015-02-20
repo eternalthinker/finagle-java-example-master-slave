@@ -43,6 +43,13 @@ public class GeneratorSlave {
 
         @Override
         public Future<HttpResponse> apply(HttpRequest request) {
+            // Simulated network delay
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            
             String reqContent = request.getContent().toString(CharsetUtil.UTF_8);
             System.out.println("[GeneratorSlave] Request received: " + reqContent);
 
@@ -56,13 +63,22 @@ public class GeneratorSlave {
                 e.printStackTrace();
             }
             
+            JSONObject jRes = new JSONObject();
+            
             String type = (String) jReq.get("type");
             if (type.equals("command")) {
                 // Asynchronous call to start video generation
                 generateVideo((Map) jReq);
+                jRes.put("job_id", (String) jReq.get("job_id"));
+                stats.incCommand();
             }
             
-            JSONObject jRes = new JSONObject();
+            if (type.equals("stats")) {
+                jRes.put("commands_received_and_acked", stats.command);
+                jRes.put("reports_sent", stats.report);
+                jRes.put("reports_timedout", stats.reportTimedOut);
+            }
+            
             jRes.put("type", "ack");
             HttpResponse response = createJsonResponse(jRes.toJSONString());
             
@@ -84,7 +100,7 @@ public class GeneratorSlave {
         public Object apply() {
             // Computation-heavy video generation work
             try {
-                Thread.sleep(3000);
+                Thread.sleep(30000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -109,16 +125,37 @@ public class GeneratorSlave {
         public String jobID;
         public String videoUrl;
     }
+    
+    private class SlaveStatistics {
+        public long command = 0;
+        public long report = 0;
+        public long reportTimedOut = 0;
+        public boolean published = false;
+        
+        public synchronized void incCommand() {
+            command++;
+        }
+        
+        public synchronized void incReport() {
+            report++;
+        }
+
+        public void incReportTimedout() {
+            reportTimedOut ++;
+        }
+    }
     // End of inner classes
     
     private static final int PID_COUNT = 3;
     
     private ExecutorServiceFuturePool futurePool;
     private ListeningServer server;
+    private SlaveStatistics stats;
     
     public GeneratorSlave() {
-        ExecutorService pool = Executors.newFixedThreadPool(10);
+        ExecutorService pool = Executors.newFixedThreadPool(20);
         futurePool = new ExecutorServiceFuturePool(pool);
+        stats = new SlaveStatistics();
     }
     
     /**
@@ -147,15 +184,38 @@ public class GeneratorSlave {
     private void notifySuccess(Object videoInfo) {
         Service<HttpRequest, HttpResponse> client = Http.newService("localhost:8000");
         JSONObject jReq = new JSONObject();
-        JobResult result = (JobResult) videoInfo;
+        final JobResult result = (JobResult) videoInfo;
         
         jReq.put("type", "report");
         jReq.put("job_id", result.jobID);
         jReq.put("video_url", result.videoUrl);
         jReq.put("pid", result.pid);
         HttpRequest request = createJsonRequest(jReq.toJSONString());
+        stats.incReport();
         
         Future<HttpResponse> masterAckF = client.apply(request);
+        client.close();
+        
+        masterAckF.addEventListener(new FutureEventListener<HttpResponse>() {
+
+            public void onFailure(Throwable e) {
+                System.out.println("[GeneratorSlave] Failed to deliver report for job: " + result.jobID);
+                stats.incReportTimedout();
+            }
+
+            public void onSuccess(HttpResponse arg0) {
+            }
+        });
+        
+        if (!stats.published && stats.command == stats.report) {
+            stats.published = true;
+            StringBuilder content = new StringBuilder();
+            content.append("============= Slave statistics =============");
+            content.append("\nCommands Received: " + Long.toString(stats.command));
+            content.append("\nJob Reports Sent: " + Long.toString(stats.report));
+            content.append("\nJob Reports Timed out: " + Long.toString(stats.reportTimedOut));
+            System.out.println(content.toString());
+        }
     }
 
     private HttpRequest createJsonRequest(String content) {

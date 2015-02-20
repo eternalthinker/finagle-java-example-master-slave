@@ -5,7 +5,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Random;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -27,10 +26,11 @@ import org.json.simple.parser.ParseException;
 import com.twitter.finagle.Http;
 import com.twitter.finagle.ListeningServer;
 import com.twitter.finagle.Service;
+import com.twitter.finagle.builder.ClientBuilder;
 import com.twitter.finagle.http.HttpMuxer;
+import com.twitter.finagle.service.RateLimitingFilter;
 import com.twitter.util.Await;
 import com.twitter.util.ExecutorServiceFuturePool;
-import com.twitter.util.Function;
 import com.twitter.util.Function0;
 import com.twitter.util.Future;
 import com.twitter.util.FutureEventListener;
@@ -58,17 +58,25 @@ public class GeneratorMaster {
             } catch (ParseException e) {
                 e.printStackTrace();
             }
-            
+
+            JSONObject jRes = new JSONObject();
+
             String type = (String) jReq.get("type");
             if (type.equals("report")) {
                 // Asynchronous call to process job completion response
                 handleSlaveReport((Map<Object, Object>) jReq);
             }
-            
-            JSONObject jRes = new JSONObject();
+
+            if (type.equals("stats")) {
+                jRes.put("commands_sent", stats.command);
+                jRes.put("command_acks_received", stats.commandAck);
+                jRes.put("commands_timedout", stats.commandTimeout);
+                jRes.put("reports_received", stats.report);
+            }
+
             jRes.put("type", "ack");
             HttpResponse response = createJsonResponse(jRes.toJSONString());
-            
+
             return Future.value(response);
         }
 
@@ -77,70 +85,114 @@ public class GeneratorMaster {
     /**
      * Scala closure to divide and assign jobs to slaves
      */
-    public class GenerateVideos extends Function0<Object> {
+    private final int JOB_COUNT = 100;
+    private class GenerateVideos extends Function0<Object> {
 
         public Object apply() {
             // Assign jobs to slaves
-            for (int i = 0; i < 5; ++i) {
-                generateVideo();
+            stats.startTime = System.currentTimeMillis();
+            for (int i = 1; i <= JOB_COUNT; ++i) {
+                generateVideo(i);
             }
-            
+
             return new Object();
         }
 
+    }
+
+    private class Statistics {
+        public long command = 0;
+        public long commandAck = 0;
+        public long commandTimeout = 0;
+        public long report = 0;
+        public boolean published = false;
+        public long startTime = 0;
+
+        public synchronized void incReport() {
+            report++;
+        }
+
+        public synchronized void incCommandAck() {
+            commandAck++;
+        }
     }
     // End of inner classes
 
     private ListeningServer server;
     private RedisCache redisCache;
+    private Statistics stats;
     private Random rand = new Random(); // Only for testing, remove later
-    
+
     public GeneratorMaster() {
         redisCache = new RedisCache("localhost", 7000);
+        stats = new Statistics();
     }
-    
+
     /**
      * Asynchronously sends initial job command to slave
      */
-    private void generateVideo() {
+    private void generateVideo(Integer jobNum) {
         Service<HttpRequest, HttpResponse> client = Http.newService("localhost:8001");
-        JSONObject jReq = new JSONObject();
+        /*Service<HttpRequest, HttpResponse> client = ClientBuilder
+                .safeBuild(ClientBuilder.get().codec(com.twitter.finagle.http.Http.get())
+                        .hosts("localhost:8001").hostConnectionLimit(100));*/
         
+        JSONObject jReq = new JSONObject();
+
         String pid = Integer.toString(rand.nextInt(1000));
         String imgUrl = "//img.cdn.origin/" + pid + ".jpg";
-        String jobID = UUID.randomUUID().toString();
+        //String jobID = UUID.randomUUID().toString();
+        final String jobID = jobNum.toString();
 
         jReq.put("type", "command");
         jReq.put("job_id", jobID);
         jReq.put("pid", pid);
         jReq.put("img_url", imgUrl);
-        
+
         HttpRequest request = createJsonRequest(jReq.toJSONString());
-        
+
         System.out.println("[GeneratorMaster] Sending command for job: " + jobID);
+        stats.command++;
         Future<HttpResponse> slaveAckF = client.apply(request);
+        client.close();
+        
+        slaveAckF.addEventListener(new FutureEventListener<HttpResponse>() {
+
+            public void onFailure(Throwable e) {
+                System.out.println("[GeneratorMaster] Job command timed out for job: " + jobID);
+                stats.commandTimeout++;
+                System.out.println(e.getCause() + " : " + e.getMessage());
+                //server.close();
+                //System.exit(0);
+            }
+
+            public void onSuccess(HttpResponse response) {
+                System.out.println("[GeneratorMaster] Job ack received for job: " + jobID);
+                stats.incCommandAck();
+            }
+        });
     }
-    
+
     /**
      * Asynchronously perform job assignment to slaves in thread pool
      */
     private void generateAllVideos() {
         ExecutorService pool = Executors.newFixedThreadPool(1);
         ExecutorServiceFuturePool futurePool = new ExecutorServiceFuturePool(pool);
-        
+
         Future<Object> jobResultF = futurePool.apply(new GenerateVideos());
     }
-    
+
     /**
      * Asynchronously performs follow up operations of video creation
      * @param request Job complete report from slave
      */
     private void handleSlaveReport(final Map<Object, Object> jReq) {
-        
+
         // Update Redis Cache
         Future<Object> cacheResponseF = Future.value(new Object());
         // redisCache.sAdd(key, jReq.get("video_url"), ttl);
-        
+
         cacheResponseF.addEventListener(new FutureEventListener<Object>() {
 
             public void onFailure(Throwable e) {
@@ -148,11 +200,42 @@ public class GeneratorMaster {
             }
 
             public void onSuccess(Object cacheResult) {
-                System.out.println("[GeneratorMaster] Cache update done. Sequence completed for job:" + jReq.get("job_id").toString());
+                System.out.println("[GeneratorMaster] Cache update done. Completed job:" + jReq.get("job_id").toString());
+                stats.incReport();
+                if (!stats.published  && stats.commandAck == stats.report) {
+                    stats.published = true;
+                    StringBuilder content = new StringBuilder();
+                    content.append("============= Master statistics =============");
+                    content.append("\nCommands Sent: " + Long.toString(stats.command));
+                    content.append("\nCommands Acked: " + Long.toString(stats.commandAck));
+                    content.append("\nCommands Timed out: " + Long.toString(stats.commandTimeout));
+                    content.append("\nJob Reports Received: " + Long.toString(stats.report));
+                    long timeTaken = System.currentTimeMillis() - stats.startTime;
+                    long x = timeTaken / 1000;
+                    long seconds = x % 60;
+                    x /= 60;
+                    long  minutes = x % 60;
+                    x /= 60;
+                    long hours = x % 24;
+                    String runTime = String.format("%d hr %d min, %d sec", 
+                            hours, minutes, seconds);
+                    content.append("\nTime taken: " + runTime);
+
+                    x = JOB_COUNT * 30 / 20;
+                    seconds = x % 60;
+                    x /= 60;
+                    minutes = x % 60;
+                    x /= 60;
+                    hours = x % 24;
+                    runTime = String.format("%d hr %d min, %d sec", 
+                            hours, minutes, seconds);
+                    content.append("\nTime expected: " + runTime);
+                    System.out.println(content.toString());
+                }
             }
         });
     }
-    
+
     private HttpRequest createJsonRequest(String content) {
         HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
         ChannelBuffer buffer = ChannelBuffers.copiedBuffer(content, UTF_8);
@@ -161,7 +244,7 @@ public class GeneratorMaster {
         request.setHeader(HttpHeaders.Names.CONTENT_LENGTH, buffer.readableBytes());
         return request;
     }
-    
+
     private HttpResponse createJsonResponse(String content) {
         HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         ChannelBuffer buffer = ChannelBuffers.copiedBuffer(content, UTF_8);
@@ -170,14 +253,14 @@ public class GeneratorMaster {
         response.setHeader(HttpHeaders.Names.CONTENT_LENGTH, buffer.readableBytes());
         return response;
     }
-    
+
     private void startServer() {
         HttpMuxer muxService = new HttpMuxer().withHandler("/", new VideoGenMasterService());
         server = Http.serve(new InetSocketAddress("localhost", 8000), muxService);
 
         System.out.println("[GeneratorMaster] Started..");
     }
-    
+
     private void awaitServer() {
         try {
             Await.ready(server);
@@ -190,14 +273,14 @@ public class GeneratorMaster {
 
     public static void main(String[] args) {
         GeneratorMaster masterServer = new GeneratorMaster();
-        
+
         masterServer.startServer();
-        
+
         // Starting the job assignment thread
         // Once this call is made, command requests are eventually sent out to slaves, 
         // and we can start expecting job status reports (not immediately in practice).
         masterServer.generateAllVideos();
-        
+
         masterServer.awaitServer();
     }
 
