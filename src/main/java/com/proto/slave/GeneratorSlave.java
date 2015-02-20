@@ -96,7 +96,7 @@ public class GeneratorSlave {
             System.out.println("[GeneratorSlave] Video file generated for job: " + jobID);
             JobResult result = new JobResult();
             result.jobID = jobID;
-            result.s3Url = "//s3.aws/bnid_" + pid + ".flv";
+            result.videoUrl = "//video.origin/bnid_" + pid + ".flv";
             result.pid = pid;
             
             return result;
@@ -107,7 +107,7 @@ public class GeneratorSlave {
     private class JobResult {
         public String pid;
         public String jobID;
-        public String s3Url;
+        public String videoUrl;
     }
     // End of inner classes
     
@@ -151,7 +151,7 @@ public class GeneratorSlave {
         
         jReq.put("type", "report");
         jReq.put("job_id", result.jobID);
-        jReq.put("s3_url", result.s3Url);
+        jReq.put("video_url", result.videoUrl);
         jReq.put("pid", result.pid);
         HttpRequest request = createJsonRequest(jReq.toJSONString());
         

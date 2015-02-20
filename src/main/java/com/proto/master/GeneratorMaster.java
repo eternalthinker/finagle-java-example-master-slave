@@ -139,6 +139,7 @@ public class GeneratorMaster {
         
         // Update Redis Cache
         Future<Object> cacheResponseF = Future.value(new Object());
+        // redisCache.sAdd(key, jReq.get("video_url"), ttl);
         
         cacheResponseF.addEventListener(new FutureEventListener<Object>() {
 
