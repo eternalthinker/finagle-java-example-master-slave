@@ -26,10 +26,13 @@ import org.json.simple.parser.ParseException;
 import com.twitter.finagle.Http;
 import com.twitter.finagle.ListeningServer;
 import com.twitter.finagle.Service;
+import com.twitter.finagle.ServiceFactory;
 import com.twitter.finagle.builder.ClientBuilder;
+import com.twitter.finagle.client.DefaultPool;
 import com.twitter.finagle.http.HttpMuxer;
 import com.twitter.finagle.service.RateLimitingFilter;
 import com.twitter.util.Await;
+import com.twitter.util.Duration;
 import com.twitter.util.ExecutorServiceFuturePool;
 import com.twitter.util.Function0;
 import com.twitter.util.Future;
@@ -85,7 +88,7 @@ public class GeneratorMaster {
     /**
      * Scala closure to divide and assign jobs to slaves
      */
-    private final int JOB_COUNT = 100;
+    private final int JOB_COUNT = 5000;
     private class GenerateVideos extends Function0<Object> {
 
         public Object apply() {
@@ -121,22 +124,23 @@ public class GeneratorMaster {
     private ListeningServer server;
     private RedisCache redisCache;
     private Statistics stats;
+    private Service<HttpRequest, HttpResponse> client;
     private Random rand = new Random(); // Only for testing, remove later
 
     public GeneratorMaster() {
         redisCache = new RedisCache("localhost", 7000);
         stats = new Statistics();
+        client = ClientBuilder
+                .safeBuild(ClientBuilder.get().codec(com.twitter.finagle.http.Http.get())
+                        .hosts("localhost:8001").hostConnectionLimit(3000));
+        // client = Http.newService("localhost:8001");
     }
 
     /**
      * Asynchronously sends initial job command to slave
      */
     private void generateVideo(Integer jobNum) {
-        Service<HttpRequest, HttpResponse> client = Http.newService("localhost:8001");
-        /*Service<HttpRequest, HttpResponse> client = ClientBuilder
-                .safeBuild(ClientBuilder.get().codec(com.twitter.finagle.http.Http.get())
-                        .hosts("localhost:8001").hostConnectionLimit(100));*/
-        
+
         JSONObject jReq = new JSONObject();
 
         String pid = Integer.toString(rand.nextInt(1000));
@@ -154,8 +158,8 @@ public class GeneratorMaster {
         System.out.println("[GeneratorMaster] Sending command for job: " + jobID);
         stats.command++;
         Future<HttpResponse> slaveAckF = client.apply(request);
-        client.close();
-        
+        //client.close();
+
         slaveAckF.addEventListener(new FutureEventListener<HttpResponse>() {
 
             public void onFailure(Throwable e) {

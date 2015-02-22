@@ -25,6 +25,7 @@ import org.json.simple.parser.ParseException;
 import com.twitter.finagle.Http;
 import com.twitter.finagle.ListeningServer;
 import com.twitter.finagle.Service;
+import com.twitter.finagle.builder.ClientBuilder;
 import com.twitter.finagle.http.HttpMuxer;
 import com.twitter.util.Await;
 import com.twitter.util.ExecutorServiceFuturePool;
@@ -151,11 +152,17 @@ public class GeneratorSlave {
     private ExecutorServiceFuturePool futurePool;
     private ListeningServer server;
     private SlaveStatistics stats;
+    private Service<HttpRequest, HttpResponse> client;
     
     public GeneratorSlave() {
         ExecutorService pool = Executors.newFixedThreadPool(20);
         futurePool = new ExecutorServiceFuturePool(pool);
         stats = new SlaveStatistics();
+        //client = Http.newService("localhost:8000");
+        client = ClientBuilder
+                .safeBuild(ClientBuilder.get().codec(com.twitter.finagle.http.Http.get())
+                        .hosts("localhost:8000").hostConnectionLimit(3000));
+
     }
     
     /**
@@ -182,7 +189,6 @@ public class GeneratorSlave {
      * @param videoInfo Info on created video
      */
     private void notifySuccess(Object videoInfo) {
-        Service<HttpRequest, HttpResponse> client = Http.newService("localhost:8000");
         JSONObject jReq = new JSONObject();
         final JobResult result = (JobResult) videoInfo;
         
@@ -249,7 +255,8 @@ public class GeneratorSlave {
         } catch (TimeoutException e) {
             e.printStackTrace();
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            // e.printStackTrace();
+            System.out.println(e.getCause() + " : " + e.getMessage());
         }
     }
 
