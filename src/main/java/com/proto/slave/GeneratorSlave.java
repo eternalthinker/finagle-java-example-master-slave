@@ -161,7 +161,7 @@ public class GeneratorSlave {
         //client = Http.newService("localhost:8000");
         client = ClientBuilder
                 .safeBuild(ClientBuilder.get().codec(com.twitter.finagle.http.Http.get())
-                        .hosts("localhost:8000").hostConnectionLimit(3000));
+                        .hosts("localhost:8000").hostConnectionLimit(2000));
 
     }
     

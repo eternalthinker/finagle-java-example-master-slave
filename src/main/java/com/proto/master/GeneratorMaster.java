@@ -128,7 +128,7 @@ public class GeneratorMaster {
         stats = new Statistics();
         client = ClientBuilder
                 .safeBuild(ClientBuilder.get().codec(com.twitter.finagle.http.Http.get())
-                        .hosts("localhost:8001").hostConnectionLimit(3000));
+                        .hosts("localhost:8001").hostConnectionLimit(2000));
         // client = Http.newService("localhost:8001");
     }
 
