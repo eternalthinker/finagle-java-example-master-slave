@@ -154,7 +154,6 @@ public class GeneratorMaster {
         System.out.println("[GeneratorMaster] Sending command for job: " + jobID);
         stats.command++;
         Future<HttpResponse> slaveAckF = client.apply(request);
-        //client.close();
 
         slaveAckF.addEventListener(new FutureEventListener<HttpResponse>() {
 

@@ -200,7 +200,6 @@ public class GeneratorSlave {
         stats.incReport();
         
         Future<HttpResponse> masterAckF = client.apply(request);
-        client.close();
         
         masterAckF.addEventListener(new FutureEventListener<HttpResponse>() {
 
