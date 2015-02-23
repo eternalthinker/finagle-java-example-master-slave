@@ -161,7 +161,7 @@ public class GeneratorSlave {
         //client = Http.newService("localhost:8000");
         client = ClientBuilder
                 .safeBuild(ClientBuilder.get().codec(com.twitter.finagle.http.Http.get())
-                        .hosts("localhost:8000").hostConnectionLimit(2000));
+                        .hosts(":8000").hostConnectionLimit(500));
 
     }
     
@@ -243,9 +243,10 @@ public class GeneratorSlave {
 
     private void startServer() {
         HttpMuxer muxService = new HttpMuxer().withHandler("/", new VideoGenSlaveService());
-        server = Http.serve(new InetSocketAddress("localhost", 8001), muxService);
+        InetSocketAddress addr = new InetSocketAddress(8001);
+        server = Http.serve(addr, muxService);
 
-        System.out.println("[GeneratorSlave] Started..");
+        System.out.println("[GeneratorSlave] Started at " + addr.getAddress() + ":" + addr.getPort());
     }
     
     private void awaitServer() {

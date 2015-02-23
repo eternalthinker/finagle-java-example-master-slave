@@ -128,7 +128,7 @@ public class GeneratorMaster {
         stats = new Statistics();
         client = ClientBuilder
                 .safeBuild(ClientBuilder.get().codec(com.twitter.finagle.http.Http.get())
-                        .hosts("localhost:8001").hostConnectionLimit(2000));
+                        .hosts(":8001").hostConnectionLimit(500));
         // client = Http.newService("localhost:8001");
     }
 
@@ -255,9 +255,10 @@ public class GeneratorMaster {
 
     private void startServer() {
         HttpMuxer muxService = new HttpMuxer().withHandler("/", new VideoGenMasterService());
-        server = Http.serve(new InetSocketAddress("localhost", 8000), muxService);
+        InetSocketAddress addr = new InetSocketAddress(8000);
+        server = Http.serve(addr, muxService);
 
-        System.out.println("[GeneratorMaster] Started..");
+        System.out.println("[GeneratorMaster] Started at " + addr.getAddress() + ":" + addr.getPort());
     }
 
     private void awaitServer() {
