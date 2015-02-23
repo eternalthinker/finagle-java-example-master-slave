@@ -46,7 +46,7 @@ public class GeneratorMaster {
         @Override
         public Future<HttpResponse> apply(HttpRequest request) {
             String reqContent = request.getContent().toString(CharsetUtil.UTF_8);
-            System.out.println("[GeneratorMaster] Request received: " + reqContent);
+            //System.out.println("[GeneratorMaster] Request received: " + reqContent);
 
             // Parsing JSON request
             // Creating parser for each request, as static parser seem to throw error on consecutive requests
@@ -128,7 +128,7 @@ public class GeneratorMaster {
         stats = new Statistics();
         client = ClientBuilder
                 .safeBuild(ClientBuilder.get().codec(com.twitter.finagle.http.Http.get())
-                        .hosts("localhost:8001").hostConnectionLimit(3000));
+                        .hosts(":8001").hostConnectionLimit(3000));
         // client = Http.newService("localhost:8001");
     }
 
@@ -151,7 +151,7 @@ public class GeneratorMaster {
 
         HttpRequest request = createJsonRequest(jReq.toJSONString());
 
-        System.out.println("[GeneratorMaster] Sending command for job: " + jobID);
+        //System.out.println("[GeneratorMaster] Sending command for job: " + jobID);
         stats.command++;
         Future<HttpResponse> slaveAckF = client.apply(request);
 
@@ -166,7 +166,7 @@ public class GeneratorMaster {
             }
 
             public void onSuccess(HttpResponse response) {
-                System.out.println("[GeneratorMaster] Job ack received for job: " + jobID);
+                //System.out.println("[GeneratorMaster] Job ack received for job: " + jobID);
                 stats.incCommandAck();
             }
         });
@@ -199,7 +199,7 @@ public class GeneratorMaster {
             }
 
             public void onSuccess(Object cacheResult) {
-                System.out.println("[GeneratorMaster] Cache update done. Completed job:" + jReq.get("job_id").toString());
+                //System.out.println("[GeneratorMaster] Cache update done. Completed job:" + jReq.get("job_id").toString());
                 stats.incReport();
                 if (!stats.published  && stats.commandAck == stats.report) {
                     stats.published = true;
@@ -255,9 +255,11 @@ public class GeneratorMaster {
 
     private void startServer() {
         HttpMuxer muxService = new HttpMuxer().withHandler("/", new VideoGenMasterService());
-        server = Http.serve(new InetSocketAddress("localhost", 8000), muxService);
+        InetSocketAddress addr = new InetSocketAddress(8000);
+        server = Http.serve(addr, muxService);
 
-        System.out.println("[GeneratorMaster] Started..");
+        System.out.println("[GeneratorSlave] Started at " + addr.getHostName() + ","
+                + addr.getAddress() + ":" + addr.getPort());
     }
 
     private void awaitServer() {

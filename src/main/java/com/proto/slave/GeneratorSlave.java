@@ -52,7 +52,7 @@ public class GeneratorSlave {
             }
             
             String reqContent = request.getContent().toString(CharsetUtil.UTF_8);
-            System.out.println("[GeneratorSlave] Request received: " + reqContent);
+            //System.out.println("[GeneratorSlave] Request received: " + reqContent);
 
             // Parsing JSON request
             // Creating parser for each request, as static parser seem to throw error on consecutive requests
@@ -110,7 +110,7 @@ public class GeneratorSlave {
             String pid = (String) jobInfo.get("pid");
             String imgUrl = (String) jobInfo.get("img_url");
             
-            System.out.println("[GeneratorSlave] Video file generated for job: " + jobID);
+            //System.out.println("[GeneratorSlave] Video file generated for job: " + jobID);
             JobResult result = new JobResult();
             result.jobID = jobID;
             result.videoUrl = "//video.origin/bnid_" + pid + ".flv";
@@ -161,7 +161,7 @@ public class GeneratorSlave {
         //client = Http.newService("localhost:8000");
         client = ClientBuilder
                 .safeBuild(ClientBuilder.get().codec(com.twitter.finagle.http.Http.get())
-                        .hosts("localhost:8000").hostConnectionLimit(3000));
+                        .hosts(":8000").hostConnectionLimit(3000));
 
     }
     
@@ -243,9 +243,11 @@ public class GeneratorSlave {
 
     private void startServer() {
         HttpMuxer muxService = new HttpMuxer().withHandler("/", new VideoGenSlaveService());
-        server = Http.serve(new InetSocketAddress("localhost", 8001), muxService);
+        InetSocketAddress addr = new InetSocketAddress(8001);
+        server = Http.serve(addr, muxService);
 
-        System.out.println("[GeneratorSlave] Started..");
+        System.out.println("[GeneratorSlave] Started at " + addr.getHostName() + ","
+                + addr.getAddress() + ":" + addr.getPort());
     }
     
     private void awaitServer() {
