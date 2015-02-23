@@ -64,6 +64,53 @@
 						</lifecycleMappingMetadata>
 					</configuration>
 				</plugin>
+
+				<plugin>
+					<artifactId>maven-jar-plugin</artifactId>
+					<version>2.5</version>
+					<executions>
+						<execution>
+							<id>master</id>
+							<goals>
+								<goal>jar</goal>
+							</goals>
+							<phase>package</phase>
+							<configuration>
+								<classifier>master</classifier>
+								<excludes>
+									<exclude>**/slave/*</exclude>
+								</excludes>
+								<archive>
+									<manifest>
+										<addClasspath>true</addClasspath>
+										<classpathPrefix>../lib/</classpathPrefix>
+										<mainClass>com.proto.master.GeneratorMaster</mainClass>
+									</manifest>
+								</archive>
+							</configuration>
+						</execution>
+						<execution>
+							<id>slave</id>
+							<goals>
+								<goal>jar</goal>
+							</goals>
+							<phase>package</phase>
+							<configuration>
+								<classifier>slave</classifier>
+								<excludes>
+									<exclude>**/master/*</exclude>
+								</excludes>
+								<archive>
+									<manifest>
+										<addClasspath>true</addClasspath>
+										<classpathPrefix>../lib/</classpathPrefix>
+										<mainClass>com.proto.slave.GeneratorSlave</mainClass>
+									</manifest>
+								</archive>
+							</configuration>
+						</execution>
+					</executions>
+				</plugin>
 			</plugins>
 		</pluginManagement>
 	</build>
@@ -116,4 +163,72 @@
 			<version>1.1</version>
 		</dependency>
 	</dependencies>
+
+	<profiles>
+		<profile>
+			<id>everything</id>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-jar-plugin</artifactId>
+						<version>2.5</version>
+						<configuration>
+							<classifier>everything</classifier>
+							<includes>
+								<include>**/*</include>
+							</includes>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>master</id>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-jar-plugin</artifactId>
+						<version>2.5</version>
+						<configuration>
+							<classifier>master</classifier>
+							<excludes>
+								<exclude>**/slave/*</exclude>
+							</excludes>
+							<archive>
+								<manifest>
+									<addClasspath>true</addClasspath>
+									<classpathPrefix>../lib/</classpathPrefix>
+									<mainClass>com.proto.master.GeneratorMaster</mainClass>
+								</manifest>
+							</archive>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>slave</id>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-jar-plugin</artifactId>
+						<version>2.5</version>
+						<configuration>
+							<classifier>slave</classifier>
+							<excludes>
+								<exclude>**/master/*</exclude>
+							</excludes>
+							<archive>
+								<manifest>
+									<addClasspath>true</addClasspath>
+									<classpathPrefix>../lib/</classpathPrefix>
+									<mainClass>com.proto.slave.GeneratorSlave</mainClass>
+								</manifest>
+							</archive>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>
