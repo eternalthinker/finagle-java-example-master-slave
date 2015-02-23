@@ -46,7 +46,7 @@ public class GeneratorMaster {
         @Override
         public Future<HttpResponse> apply(HttpRequest request) {
             String reqContent = request.getContent().toString(CharsetUtil.UTF_8);
-            System.out.println("[GeneratorMaster] Request received: " + reqContent);
+            //System.out.println("[GeneratorMaster] Request received: " + reqContent);
 
             // Parsing JSON request
             // Creating parser for each request, as static parser seem to throw error on consecutive requests
@@ -151,7 +151,7 @@ public class GeneratorMaster {
 
         HttpRequest request = createJsonRequest(jReq.toJSONString());
 
-        System.out.println("[GeneratorMaster] Sending command for job: " + jobID);
+        //System.out.println("[GeneratorMaster] Sending command for job: " + jobID);
         stats.command++;
         Future<HttpResponse> slaveAckF = client.apply(request);
 
@@ -166,7 +166,7 @@ public class GeneratorMaster {
             }
 
             public void onSuccess(HttpResponse response) {
-                System.out.println("[GeneratorMaster] Job ack received for job: " + jobID);
+                //System.out.println("[GeneratorMaster] Job ack received for job: " + jobID);
                 stats.incCommandAck();
             }
         });
@@ -199,7 +199,7 @@ public class GeneratorMaster {
             }
 
             public void onSuccess(Object cacheResult) {
-                System.out.println("[GeneratorMaster] Cache update done. Completed job:" + jReq.get("job_id").toString());
+                //System.out.println("[GeneratorMaster] Cache update done. Completed job:" + jReq.get("job_id").toString());
                 stats.incReport();
                 if (!stats.published  && stats.commandAck == stats.report) {
                     stats.published = true;

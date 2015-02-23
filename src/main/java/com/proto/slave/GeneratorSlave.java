@@ -52,7 +52,7 @@ public class GeneratorSlave {
             }
             
             String reqContent = request.getContent().toString(CharsetUtil.UTF_8);
-            System.out.println("[GeneratorSlave] Request received: " + reqContent);
+            //System.out.println("[GeneratorSlave] Request received: " + reqContent);
 
             // Parsing JSON request
             // Creating parser for each request, as static parser seem to throw error on consecutive requests
@@ -110,7 +110,7 @@ public class GeneratorSlave {
             String pid = (String) jobInfo.get("pid");
             String imgUrl = (String) jobInfo.get("img_url");
             
-            System.out.println("[GeneratorSlave] Video file generated for job: " + jobID);
+            //System.out.println("[GeneratorSlave] Video file generated for job: " + jobID);
             JobResult result = new JobResult();
             result.jobID = jobID;
             result.videoUrl = "//video.origin/bnid_" + pid + ".flv";
