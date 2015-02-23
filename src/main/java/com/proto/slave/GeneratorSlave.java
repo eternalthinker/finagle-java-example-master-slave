@@ -243,6 +243,7 @@ public class GeneratorSlave {
 
     private void startServer() {
         HttpMuxer muxService = new HttpMuxer().withHandler("/", new VideoGenSlaveService());
+        
         InetSocketAddress addr = new InetSocketAddress(8001);
         server = Http.serve(addr, muxService);
 

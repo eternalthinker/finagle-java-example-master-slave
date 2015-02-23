@@ -254,7 +254,10 @@ public class GeneratorMaster {
     }
 
     private void startServer() {
-        HttpMuxer muxService = new HttpMuxer().withHandler("/", new VideoGenMasterService());
+        HttpMuxer muxService = new HttpMuxer()
+        .withHandler("/upload/", new UIService())
+        .withHandler("/", new VideoGenMasterService());
+
         InetSocketAddress addr = new InetSocketAddress(8000);
         server = Http.serve(addr, muxService);
 
@@ -279,7 +282,7 @@ public class GeneratorMaster {
         // Starting the job assignment thread
         // Once this call is made, command requests are eventually sent out to slaves, 
         // and we can start expecting job status reports (not immediately in practice).
-        masterServer.generateAllVideos();
+        //masterServer.generateAllVideos();
 
         masterServer.awaitServer();
     }
