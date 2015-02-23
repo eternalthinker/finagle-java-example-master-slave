@@ -32,41 +32,38 @@ public class CampaignUploadHandler extends AbstractHandler {
         content.append("<!DOCTYPE html>\n<html><body>");
 
         // Process upload request
-        /*File pidFile = (File) request.getAttribute("pid-file");
-
-        if (pidFile == null || !pidFile.exists())
-        {
-            content.append("File does not exist");
-        }
-        else if ( pidFile.isDirectory() )
-        {
-            content.append("File is a directory");
-        }
-        else
-        {
-            File outputFile = new File("pid/" + request.getParameter("pid-file"));
-            pidFile.renameTo(outputFile);
-            content.append("File successfully uploaded.");
-        }*/
-
         if ( request.getContentType() != null && 
                 request.getContentType().startsWith( "multipart/form-data" )) {
             baseRequest.setAttribute(Request.__MULTIPART_CONFIG_ELEMENT, MULTI_PART_CONFIG);
             
-            Collection<Part> parts = request.getParts();
-            for (Part part : parts) {
-                System.out.println("" + part.getName());
+            System.out.println("Request params found:");
+            for (Part part : request.getParts()) {
+                System.out.println("  * " + part.getName());
             }
+            
+            String campId = request.getParameter("camp-id");
+            content.append("Details of submitted campaign: " + campId + "<br>");
 
-            Part filePart = request.getPart("pid-file");
-
-            if (filePart != null) {
-                System.out.println("File part saving..");
-                InputStream fileStream = filePart.getInputStream(); 
-                ByteStreams.copy(fileStream, Files.newOutputStreamSupplier(new File("pid/pid1.txt")));
+            Part pidFilePart = request.getPart("pid-file");
+            if (pidFilePart.getSize() > 0) {
+                System.out.println("Saving pid file..");
+                InputStream fileStream = pidFilePart.getInputStream(); 
+                File dest = new File("pid/" + campId + ".txt");
+                ByteStreams.copy(fileStream, Files.newOutputStreamSupplier(dest));
+                content.append("Saved pid file..<br>");
             }
+            
+            Part videoFilePart = request.getPart("video-file");
+            if (videoFilePart.getSize() > 0) {
+                System.out.println("Saving video file..");
+                InputStream fileStream = videoFilePart.getInputStream(); 
+                File dest = new File("video/" + campId + ".flv");
+                ByteStreams.copy(fileStream, Files.newOutputStreamSupplier(dest));
+                content.append("Saved video file..<br>");
+            }
+            
+            content.append("<hr />");
         }
-
         // End of upload request processing
 
         try {

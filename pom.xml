@@ -84,6 +84,7 @@
 								<classifier>master</classifier>
 								<excludes>
 									<exclude>**/slave/*</exclude>
+									<exclude>**/ui/*</exclude>
 								</excludes>
 								<archive>
 									<manifest>
@@ -104,12 +105,34 @@
 								<classifier>slave</classifier>
 								<excludes>
 									<exclude>**/master/*</exclude>
+									<exclude>**/ui/*</exclude>
 								</excludes>
 								<archive>
 									<manifest>
 										<addClasspath>true</addClasspath>
 										<classpathPrefix>../lib/</classpathPrefix>
 										<mainClass>com.proto.slave.GeneratorSlave</mainClass>
+									</manifest>
+								</archive>
+							</configuration>
+						</execution>
+						<execution>
+							<id>ui</id>
+							<goals>
+								<goal>jar</goal>
+							</goals>
+							<phase>package</phase>
+							<configuration>
+								<classifier>ui</classifier>
+								<excludes>
+									<exclude>**/master/*</exclude>
+									<exclude>**/slave/*</exclude>
+								</excludes>
+								<archive>
+									<manifest>
+										<addClasspath>true</addClasspath>
+										<classpathPrefix>../lib/</classpathPrefix>
+										<mainClass>com.proto.ui.CampaignUploadHandler</mainClass>
 									</manifest>
 								</archive>
 							</configuration>
@@ -203,6 +226,7 @@
 							<classifier>master</classifier>
 							<excludes>
 								<exclude>**/slave/*</exclude>
+								<exclude>**/ui/*</exclude>
 							</excludes>
 							<archive>
 								<manifest>

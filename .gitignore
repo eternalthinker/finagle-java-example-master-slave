@@ -1,3 +1,7 @@
+# Project specific
+video/
+pid/
+
 # Eclipse
 .classpath
 .project

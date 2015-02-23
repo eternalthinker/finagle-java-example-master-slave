@@ -254,9 +254,7 @@ public class GeneratorMaster {
     }
 
     private void startServer() {
-        HttpMuxer muxService = new HttpMuxer()
-        .withHandler("/upload/", new UIService())
-        .withHandler("/", new VideoGenMasterService());
+        HttpMuxer muxService = new HttpMuxer().withHandler("/", new VideoGenMasterService());
 
         InetSocketAddress addr = new InetSocketAddress(8000);
         server = Http.serve(addr, muxService);
