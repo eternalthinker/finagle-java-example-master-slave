@@ -35,35 +35,15 @@ public class CampaignUploadHandler extends AbstractHandler {
     public void handle(String target, Request baseRequest, HttpServletRequest request,
             HttpServletResponse response) throws IOException, ServletException {
         
-        // A simple method to serve static content like CSS, JS files
-        if (target.startsWith("/resource")) {
-            serveStatic(target, response, baseRequest);
-            return;
-        }
-        
         // Begin response content
         StringBuilder content = new StringBuilder();
         content.append("<!DOCTYPE html>\n<html><body><head>");
-
-        // HEAD
-        try {
-            content.append(Files.toString(new File("static/head.html"), Charsets.UTF_8));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
         content.append("<title>Video Campaign Upload</title></head>");
-
-        // CONTENT WRAPPER TOP
-        content.append("<div class='container-fluid' style='height:100%;'>");
-        content.append("<div class='row' style='height:100%;'>");
-        content.append("<div class='col-xs-12' style='height:100%;'>");
 
         // Process upload request
         if ( request.getContentType() != null && 
                 request.getContentType().startsWith( "multipart/form-data" )) {
-            // INFO START
-            content.append("<div style='margin: 20px auto'><span class='alert alert-success'>");
-
+            
             baseRequest.setAttribute(Request.__MULTIPART_CONFIG_ELEMENT, MULTI_PART_CONFIG);
 
             System.out.println("Request params found:");
@@ -72,7 +52,7 @@ public class CampaignUploadHandler extends AbstractHandler {
             }
 
             String campId = request.getParameter("camp-id");
-            content.append("Details of submitted campaign: " + campId + ": ");
+            content.append("Details of submitted campaign: " + campId + "<br> ");
 
             Date now = new Date();
             String dirName = dateFormat.format(now);
@@ -92,7 +72,7 @@ public class CampaignUploadHandler extends AbstractHandler {
                 InputStream fileStream = pidFilePart.getInputStream(); 
                 File dest = new File(dirName + "/" + campId + "_pid.txt");
                 ByteStreams.copy(fileStream, Files.newOutputStreamSupplier(dest));
-                content.append("Saved pid file. ");
+                content.append("Saved pid file.<br> ");
             }
 
             Part videoFilePart = request.getPart("video-file");
@@ -101,26 +81,19 @@ public class CampaignUploadHandler extends AbstractHandler {
                 InputStream fileStream = videoFilePart.getInputStream(); 
                 File dest = new File(dirName + "/" + campId + "_video.flv");
                 ByteStreams.copy(fileStream, Files.newOutputStreamSupplier(dest));
-                content.append("Saved video file.");
+                content.append("Saved video file.<br>");
             }
 
-            // INFO END
-            content.append("</span></div>");
-            //content.append("<hr />");
+            content.append("<hr />");
         }
         // End of upload request processing
 
 
         try {
-            content.append(Files.toString(new File("static/upload_form2.html"), Charsets.UTF_8));
+            content.append(Files.toString(new File("static/upload_form.html"), Charsets.UTF_8));
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        // CONTENT WRAPPER END
-        content.append("</div>");
-        content.append("</div> <!-- END core content row -->");
-        content.append("</div> <!-- END main container -->");
 
         content.append("</body></html>");
         // End of response content
@@ -132,17 +105,7 @@ public class CampaignUploadHandler extends AbstractHandler {
         baseRequest.setHandled(true);
     }
 
-    private void serveStatic(String path, HttpServletResponse response, Request baseRequest) {
-        try {
-            response.getWriter().println(Files.toString(new File(path.substring(1)), Charsets.UTF_8));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        response.setContentType("text/plain;charset=utf-8");
-        response.setStatus(HttpServletResponse.SC_OK);
-        baseRequest.setHandled(true);
-    }
-
+    
     public static void main(String[] args) {
         Server server = new Server(8080);
 
