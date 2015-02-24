@@ -1,8 +1,14 @@
 package com.proto.ui;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLConnection;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
@@ -34,7 +40,7 @@ public class CampaignUploadHandler extends AbstractHandler {
 
     public void handle(String target, Request baseRequest, HttpServletRequest request,
             HttpServletResponse response) throws IOException, ServletException {
-        
+
         // Begin response content
         StringBuilder content = new StringBuilder();
         content.append("<!DOCTYPE html>\n<html><body><head>");
@@ -43,7 +49,7 @@ public class CampaignUploadHandler extends AbstractHandler {
         // Process upload request
         if ( request.getContentType() != null && 
                 request.getContentType().startsWith( "multipart/form-data" )) {
-            
+
             baseRequest.setAttribute(Request.__MULTIPART_CONFIG_ELEMENT, MULTI_PART_CONFIG);
 
             System.out.println("Request params found:");
@@ -85,6 +91,32 @@ public class CampaignUploadHandler extends AbstractHandler {
             }
 
             content.append("<hr />");
+            
+            // Optionally update the Master Video Generator service
+            /*System.out.println("Sending data to Master..");
+            URL url = new URL("http://localhost:8000/");
+            URLConnection UrlConnObj = url.openConnection();
+            HttpURLConnection huc = (HttpURLConnection) UrlConnObj;
+            huc.setRequestMethod("POST");
+            huc.setDoOutput(true);
+            huc.setDoInput(true);
+            huc.setUseCaches(false);
+            huc.setDefaultUseCaches(false);
+            huc.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+            String data = "{\"type\":\"stats\"}";
+            OutputStream output;
+            try {
+                output = huc.getOutputStream();
+                output.write(data.getBytes("UTF-8"));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            InputStream jRes = huc.getInputStream();
+            BufferedReader in = new BufferedReader(new InputStreamReader(jRes));
+            String inputLine;
+            while ((inputLine = in.readLine()) != null) 
+                System.out.println(inputLine);
+            in.close();*/
         }
         // End of upload request processing
 
@@ -105,7 +137,7 @@ public class CampaignUploadHandler extends AbstractHandler {
         baseRequest.setHandled(true);
     }
 
-    
+
     public static void main(String[] args) {
         Server server = new Server(8080);
 
