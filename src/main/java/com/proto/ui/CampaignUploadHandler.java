@@ -3,7 +3,9 @@ package com.proto.ui;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.SimpleDateFormat;
 import java.util.Collection;
+import java.util.Date;
 
 import javax.servlet.MultipartConfigElement;
 import javax.servlet.ServletException;
@@ -23,6 +25,7 @@ public class CampaignUploadHandler extends AbstractHandler {
     
     private static final MultipartConfigElement MULTI_PART_CONFIG = 
             new MultipartConfigElement(System.getProperty("java.io.tmpdir"));
+    private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss");
 
     public void handle(String target, Request baseRequest, HttpServletRequest request,
             HttpServletResponse response) throws IOException, ServletException {
@@ -43,12 +46,24 @@ public class CampaignUploadHandler extends AbstractHandler {
             
             String campId = request.getParameter("camp-id");
             content.append("Details of submitted campaign: " + campId + "<br>");
+            
+            Date now = new Date();
+            String dirName = dateFormat.format(now);
+            
+            File destDir = new File(dirName);
+            if (! destDir.exists()) {
+                try{
+                    destDir.mkdir();
+                } catch(SecurityException se){
+                    System.out.println(se.getMessage());
+                }        
+            }
 
             Part pidFilePart = request.getPart("pid-file");
             if (pidFilePart.getSize() > 0) {
                 System.out.println("Saving pid file..");
                 InputStream fileStream = pidFilePart.getInputStream(); 
-                File dest = new File("pid/" + campId + ".txt");
+                File dest = new File(dirName + "/" + campId + "_pid.txt");
                 ByteStreams.copy(fileStream, Files.newOutputStreamSupplier(dest));
                 content.append("Saved pid file..<br>");
             }
@@ -57,7 +72,7 @@ public class CampaignUploadHandler extends AbstractHandler {
             if (videoFilePart.getSize() > 0) {
                 System.out.println("Saving video file..");
                 InputStream fileStream = videoFilePart.getInputStream(); 
-                File dest = new File("video/" + campId + ".flv");
+                File dest = new File(dirName + "/" + campId + "_video.flv");
                 ByteStreams.copy(fileStream, Files.newOutputStreamSupplier(dest));
                 content.append("Saved video file..<br>");
             }
