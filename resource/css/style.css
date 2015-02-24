@@ -1,0 +1,21 @@
+
+body { 
+    padding-top: 70px; 
+}
+
+html, body {
+	height: 100%;
+}
+
+/* Fix for ghost bootstrapSwitch in Flat UI in Chrome (weird) */
+.navbar-fixed-top,
+.navbar-fixed-bottom {
+    border-radius: 1px;
+}
+
+.flex-parent {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+}
