@@ -103,7 +103,7 @@ public class CampaignUploadHandler extends AbstractHandler {
             huc.setUseCaches(false);
             huc.setDefaultUseCaches(false);
             huc.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-            String data = "{\"type\":\"stats\"}";
+            String data = "{\"type\":\"notify\"}";
             OutputStream output;
             try {
                 output = huc.getOutputStream();

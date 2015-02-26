@@ -5,9 +5,12 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Random;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.eclipse.jetty.util.ajax.JSON;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
@@ -19,9 +22,12 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.jboss.netty.util.CharsetUtil;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+
+import scala.runtime.BoxedUnit;
 
 import com.twitter.finagle.Http;
 import com.twitter.finagle.ListeningServer;
@@ -29,10 +35,12 @@ import com.twitter.finagle.Service;
 import com.twitter.finagle.builder.ClientBuilder;
 import com.twitter.finagle.http.HttpMuxer;
 import com.twitter.util.Await;
+import com.twitter.util.Duration;
 import com.twitter.util.ExecutorServiceFuturePool;
 import com.twitter.util.Function0;
 import com.twitter.util.Future;
 import com.twitter.util.FutureEventListener;
+import com.twitter.util.Time;
 import com.twitter.util.TimeoutException;
 
 public class GeneratorMaster {
@@ -84,7 +92,7 @@ public class GeneratorMaster {
     /**
      * Scala closure to divide and assign jobs to slaves
      */
-    private final int JOB_COUNT = 5000;
+    private final int JOB_COUNT = 5;
     private class GenerateVideos extends Function0<Object> {
 
         public Object apply() {
@@ -115,6 +123,51 @@ public class GeneratorMaster {
             commandAck++;
         }
     }
+    
+    private class ResultsPoll extends TimerTask {
+
+        @Override
+        public void run() {
+            // Poll python client for finished jobs
+            System.out.println("Polling for results..");
+            JSONObject jReq = new JSONObject();
+            jReq.put("type", "poll");
+            HttpRequest request = createJsonRequest(jReq.toJSONString());
+            Future<HttpResponse> pollResultF = client.apply(request);
+            
+            pollResultF.addEventListener(new FutureEventListener<HttpResponse>() {
+
+                public void onFailure(Throwable e) {
+                    System.out.println("Polling failed: " + e.getMessage());
+                }
+
+                public void onSuccess(HttpResponse response) {
+                    // Process results
+                    JSONParser jsonParser = new JSONParser();
+                    JSONObject jRes = null;
+                    try {
+                        jRes = (JSONObject) jsonParser.parse(response.getContent().toString(UTF_8));
+                    } catch (ParseException e) {
+                       System.out.println(e.getCause() + ": " + e.getMessage());
+                    }
+                    String type = (String) jRes.get("type");
+                    if (! type.equals("pollreports")) {
+                        return;
+                    }
+                    
+                    JSONArray reports = (JSONArray) jRes.get("reports");
+                    if (reports.size() == 0) {
+                        System.out.println("No finished jobs at this time");
+                    }
+                    for (Object obj : reports) {
+                        JSONObject report = (JSONObject) obj;
+                        System.out.println("Received report for job: " + report.get("job_id"));
+                    }
+                }
+            });
+        }
+        
+    }
     // End of inner classes
 
     private ListeningServer server;
@@ -122,14 +175,19 @@ public class GeneratorMaster {
     private Statistics stats;
     private Service<HttpRequest, HttpResponse> client;
     private Random rand = new Random(); // Only for testing, remove later
+    // private Timer resultsPollTimer;
+    private static final String SLAVE_REQ_PATH = "/genvid/";
+    private static final String SLAVE_PORT = "5000";
+    // private final long RESULTS_POLL_DELAY = 1000 * 5;
 
     public GeneratorMaster() {
         redisCache = new RedisCache("localhost", 7000);
         stats = new Statistics();
         client = ClientBuilder
                 .safeBuild(ClientBuilder.get().codec(com.twitter.finagle.http.Http.get())
-                        .hosts(":8001").hostConnectionLimit(500));
+                        .hosts("localhost:" + SLAVE_PORT).hostConnectionLimit(500));
         // client = Http.newService("localhost:8001");
+        // resultsPollTimer = new Timer(true);
     }
 
     /**
@@ -151,7 +209,7 @@ public class GeneratorMaster {
 
         HttpRequest request = createJsonRequest(jReq.toJSONString());
 
-        //System.out.println("[GeneratorMaster] Sending command for job: " + jobID);
+        System.out.println("[GeneratorMaster] Sending command for job: " + jobID);
         stats.command++;
         Future<HttpResponse> slaveAckF = client.apply(request);
 
@@ -166,7 +224,8 @@ public class GeneratorMaster {
             }
 
             public void onSuccess(HttpResponse response) {
-                //System.out.println("[GeneratorMaster] Job ack received for job: " + jobID);
+                System.out.println("[GeneratorMaster] Job ack received for job: " + jobID + " -> " +
+                        response.getContent().toString(UTF_8));
                 stats.incCommandAck();
             }
         });
@@ -176,6 +235,9 @@ public class GeneratorMaster {
      * Asynchronously perform job assignment to slaves in thread pool
      */
     private void generateAllVideos() {
+        // Start background task for polling results
+        // resultsPollTimer.schedule(new ResultsPoll(), RESULTS_POLL_DELAY, RESULTS_POLL_DELAY);
+        
         ExecutorService pool = Executors.newFixedThreadPool(1);
         ExecutorServiceFuturePool futurePool = new ExecutorServiceFuturePool(pool);
 
@@ -236,7 +298,7 @@ public class GeneratorMaster {
     }
 
     private HttpRequest createJsonRequest(String content) {
-        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/");
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, SLAVE_REQ_PATH);
         ChannelBuffer buffer = ChannelBuffers.copiedBuffer(content, UTF_8);
         request.setContent(buffer);
         request.setHeader(HttpHeaders.Names.CONTENT_TYPE, "application/json; charset=UTF-8");
@@ -280,7 +342,7 @@ public class GeneratorMaster {
         // Starting the job assignment thread
         // Once this call is made, command requests are eventually sent out to slaves, 
         // and we can start expecting job status reports (not immediately in practice).
-        //masterServer.generateAllVideos();
+        masterServer.generateAllVideos();
 
         masterServer.awaitServer();
     }
