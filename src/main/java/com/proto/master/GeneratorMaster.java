@@ -73,8 +73,16 @@ public class GeneratorMaster {
                 // Asynchronous call to process job completion response
                 handleSlaveReport((Map<Object, Object>) jReq);
             }
-
-            if (type.equals("stats")) {
+            else if (type.equals("reports")) {
+                // Process results
+                JSONArray reports = (JSONArray) jReq.get("reports");
+                for (Object obj : reports) {
+                    JSONObject report = (JSONObject) obj;
+                    System.out.println("Received report for job: " + report.get("job_id"));
+                    handleSlaveReport((Map<Object, Object>) report);
+                }
+            }
+            else if (type.equals("stats")) {
                 jRes.put("commands_sent", stats.command);
                 jRes.put("command_acks_received", stats.commandAck);
                 jRes.put("commands_timedout", stats.commandTimeout);
@@ -92,7 +100,7 @@ public class GeneratorMaster {
     /**
      * Scala closure to divide and assign jobs to slaves
      */
-    private final int JOB_COUNT = 5;
+    private final int JOB_COUNT = 15;
     private class GenerateVideos extends Function0<Object> {
 
         public Object apply() {
@@ -123,7 +131,7 @@ public class GeneratorMaster {
             commandAck++;
         }
     }
-    
+
     private class ResultsPoll extends TimerTask {
 
         @Override
@@ -134,7 +142,7 @@ public class GeneratorMaster {
             jReq.put("type", "poll");
             HttpRequest request = createJsonRequest(jReq.toJSONString());
             Future<HttpResponse> pollResultF = client.apply(request);
-            
+
             pollResultF.addEventListener(new FutureEventListener<HttpResponse>() {
 
                 public void onFailure(Throwable e) {
@@ -148,13 +156,13 @@ public class GeneratorMaster {
                     try {
                         jRes = (JSONObject) jsonParser.parse(response.getContent().toString(UTF_8));
                     } catch (ParseException e) {
-                       System.out.println(e.getCause() + ": " + e.getMessage());
+                        System.out.println(e.getCause() + ": " + e.getMessage());
                     }
                     String type = (String) jRes.get("type");
                     if (! type.equals("pollreports")) {
                         return;
                     }
-                    
+
                     JSONArray reports = (JSONArray) jRes.get("reports");
                     if (reports.size() == 0) {
                         System.out.println("No finished jobs at this time");
@@ -166,7 +174,7 @@ public class GeneratorMaster {
                 }
             });
         }
-        
+
     }
     // End of inner classes
 
@@ -237,7 +245,7 @@ public class GeneratorMaster {
     private void generateAllVideos() {
         // Start background task for polling results
         // resultsPollTimer.schedule(new ResultsPoll(), RESULTS_POLL_DELAY, RESULTS_POLL_DELAY);
-        
+
         ExecutorService pool = Executors.newFixedThreadPool(1);
         ExecutorServiceFuturePool futurePool = new ExecutorServiceFuturePool(pool);
 
