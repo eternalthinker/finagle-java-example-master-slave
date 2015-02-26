@@ -101,6 +101,8 @@ public class GeneratorMaster {
      * Scala closure to divide and assign jobs to slaves
      */
     private final int JOB_COUNT = 15;
+    private final int SLAVE_THREADS = 5;
+    private final int AVG_JOB_TIME = 5;
     private class GenerateVideos extends Function0<Object> {
 
         public Object apply() {
@@ -290,7 +292,7 @@ public class GeneratorMaster {
                             hours, minutes, seconds);
                     content.append("\nTime taken: " + runTime);
 
-                    x = JOB_COUNT * 30 / 20;
+                    x = JOB_COUNT * AVG_JOB_TIME / SLAVE_THREADS;
                     seconds = x % 60;
                     x /= 60;
                     minutes = x % 60;
