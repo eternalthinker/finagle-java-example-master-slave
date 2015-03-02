@@ -100,9 +100,9 @@ public class GeneratorMaster {
     /**
      * Scala closure to divide and assign jobs to slaves
      */
-    private final int JOB_COUNT = 15;
+    private final int JOB_COUNT = 1;
     private final int SLAVE_THREADS = 5;
-    private final int AVG_JOB_TIME = 5;
+    private final int AVG_JOB_TIME = 10;
     private class GenerateVideos extends Function0<Object> {
 
         public Object apply() {
@@ -133,51 +133,6 @@ public class GeneratorMaster {
             commandAck++;
         }
     }
-
-    private class ResultsPoll extends TimerTask {
-
-        @Override
-        public void run() {
-            // Poll python client for finished jobs
-            System.out.println("Polling for results..");
-            JSONObject jReq = new JSONObject();
-            jReq.put("type", "poll");
-            HttpRequest request = createJsonRequest(jReq.toJSONString());
-            Future<HttpResponse> pollResultF = client.apply(request);
-
-            pollResultF.addEventListener(new FutureEventListener<HttpResponse>() {
-
-                public void onFailure(Throwable e) {
-                    System.out.println("Polling failed: " + e.getMessage());
-                }
-
-                public void onSuccess(HttpResponse response) {
-                    // Process results
-                    JSONParser jsonParser = new JSONParser();
-                    JSONObject jRes = null;
-                    try {
-                        jRes = (JSONObject) jsonParser.parse(response.getContent().toString(UTF_8));
-                    } catch (ParseException e) {
-                        System.out.println(e.getCause() + ": " + e.getMessage());
-                    }
-                    String type = (String) jRes.get("type");
-                    if (! type.equals("pollreports")) {
-                        return;
-                    }
-
-                    JSONArray reports = (JSONArray) jRes.get("reports");
-                    if (reports.size() == 0) {
-                        System.out.println("No finished jobs at this time");
-                    }
-                    for (Object obj : reports) {
-                        JSONObject report = (JSONObject) obj;
-                        System.out.println("Received report for job: " + report.get("job_id"));
-                    }
-                }
-            });
-        }
-
-    }
     // End of inner classes
 
     private ListeningServer server;
@@ -185,10 +140,8 @@ public class GeneratorMaster {
     private Statistics stats;
     private Service<HttpRequest, HttpResponse> client;
     private Random rand = new Random(); // Only for testing, remove later
-    // private Timer resultsPollTimer;
     private static final String SLAVE_REQ_PATH = "/genvid/";
     private static final String SLAVE_PORT = "5000";
-    // private final long RESULTS_POLL_DELAY = 1000 * 5;
 
     public GeneratorMaster() {
         redisCache = new RedisCache("localhost", 7000);
@@ -197,7 +150,6 @@ public class GeneratorMaster {
                 .safeBuild(ClientBuilder.get().codec(com.twitter.finagle.http.Http.get())
                         .hosts("localhost:" + SLAVE_PORT).hostConnectionLimit(500));
         // client = Http.newService("localhost:8001");
-        // resultsPollTimer = new Timer(true);
     }
 
     /**
@@ -245,9 +197,6 @@ public class GeneratorMaster {
      * Asynchronously perform job assignment to slaves in thread pool
      */
     private void generateAllVideos() {
-        // Start background task for polling results
-        // resultsPollTimer.schedule(new ResultsPoll(), RESULTS_POLL_DELAY, RESULTS_POLL_DELAY);
-
         ExecutorService pool = Executors.newFixedThreadPool(1);
         ExecutorServiceFuturePool futurePool = new ExecutorServiceFuturePool(pool);
 
@@ -292,7 +241,7 @@ public class GeneratorMaster {
                             hours, minutes, seconds);
                     content.append("\nTime taken: " + runTime);
 
-                    x = JOB_COUNT * AVG_JOB_TIME / SLAVE_THREADS;
+                    x = JOB_COUNT * AVG_JOB_TIME / (JOB_COUNT >= SLAVE_THREADS? SLAVE_THREADS: 1);
                     seconds = x % 60;
                     x /= 60;
                     minutes = x % 60;
@@ -300,7 +249,7 @@ public class GeneratorMaster {
                     hours = x % 24;
                     runTime = String.format("%d hr %d min, %d sec", 
                             hours, minutes, seconds);
-                    content.append("\nTime expected: " + runTime);
+                    content.append("\nAverage Time expected: " + runTime);
                     System.out.println(content.toString());
                 }
             }
