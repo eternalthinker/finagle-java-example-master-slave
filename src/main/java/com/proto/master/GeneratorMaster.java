@@ -104,9 +104,6 @@ public class GeneratorMaster {
     /**
      * Scala closure to divide and assign jobs to slaves
      */
-    private final int JOB_COUNT = 1;
-    private final int SLAVE_THREADS = 5;
-    private final int AVG_JOB_TIME = 10;
     private class GenerateVideos extends Function0<Object> {
 
         public Object apply() {
@@ -146,6 +143,10 @@ public class GeneratorMaster {
     private Random rand = new Random(); // Only for testing, remove later
     private static final String SLAVE_REQ_PATH = "/genvid/";
     private static final String SLAVE_PORT = "5000";
+    
+    private final int JOB_COUNT = 5;
+    private final int SLAVE_THREADS = 5;
+    private final int AVG_JOB_TIME = 10;
 
     public GeneratorMaster() {
         redisCache = new RedisCache("localhost", 7000);
