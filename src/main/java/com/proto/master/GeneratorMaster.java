@@ -28,12 +28,15 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import scala.runtime.BoxedUnit;
+import scala.runtime.Nothing$;
 
 import com.twitter.finagle.Http;
 import com.twitter.finagle.ListeningServer;
 import com.twitter.finagle.Service;
 import com.twitter.finagle.builder.ClientBuilder;
 import com.twitter.finagle.http.HttpMuxer;
+import com.twitter.finagle.service.RetryPolicy;
+import com.twitter.finagle.service.SimpleRetryPolicy;
 import com.twitter.util.Await;
 import com.twitter.util.Duration;
 import com.twitter.util.ExecutorServiceFuturePool;
@@ -42,6 +45,7 @@ import com.twitter.util.Future;
 import com.twitter.util.FutureEventListener;
 import com.twitter.util.Time;
 import com.twitter.util.TimeoutException;
+import com.twitter.util.Try;
 
 public class GeneratorMaster {
 
@@ -100,7 +104,7 @@ public class GeneratorMaster {
     /**
      * Scala closure to divide and assign jobs to slaves
      */
-    private final int JOB_COUNT = 5;
+    private final int JOB_COUNT = 1;
     private final int SLAVE_THREADS = 5;
     private final int AVG_JOB_TIME = 10;
     private class GenerateVideos extends Function0<Object> {
@@ -146,9 +150,29 @@ public class GeneratorMaster {
     public GeneratorMaster() {
         redisCache = new RedisCache("localhost", 7000);
         stats = new Statistics();
-        client = ClientBuilder
-                .safeBuild(ClientBuilder.get().codec(com.twitter.finagle.http.Http.get())
-                        .hosts("localhost:" + SLAVE_PORT).hostConnectionLimit(500));
+        
+        RetryPolicy<Try<Nothing$>> retryPolicy = new SimpleRetryPolicy<Try<Nothing$>>() {
+            
+            @Override
+            public Duration backoffAt(int retryCount) {
+                if (retryCount > 3) {
+                    return Duration.fromSeconds(16);
+                }
+                return Duration.fromSeconds((int) Math.pow(2.0, retryCount));
+            }
+
+            @Override
+            public boolean shouldRetry(Try<Nothing$> arg) {
+                return true;
+            }
+        };
+        
+        ClientBuilder clientBuilder = ClientBuilder.get()
+                .codec(com.twitter.finagle.http.Http.get())
+                .retryPolicy(retryPolicy) // Retry forever, with exponential backoff
+                .hostConnectionLimit(500)
+                .hosts("localhost:" + SLAVE_PORT);
+        client = ClientBuilder.safeBuild(clientBuilder);
         // client = Http.newService("localhost:8001");
     }
 
