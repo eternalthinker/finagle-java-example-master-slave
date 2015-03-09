@@ -70,7 +70,7 @@ public class ProductFileReader implements ProductReader {
             campaign = new String[listOfCampaignFiles.length];
             int index = 0;
             for (File file : listOfCampaignFiles) {
-                campaign[index] = file.getName().replaceFirst("[.][^.]+$", "");
+                campaign[index++] = file.getName().replaceFirst("[.][^.]+$", "");
             }
         }
         return campaign;

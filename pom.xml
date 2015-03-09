@@ -85,33 +85,13 @@
 								<excludes>
 									<exclude>**/slave/*</exclude>
 									<exclude>**/ui/*</exclude>
+									<exclude>**/static/*</exclude>
 								</excludes>
 								<archive>
 									<manifest>
 										<addClasspath>true</addClasspath>
 										<classpathPrefix>../lib/</classpathPrefix>
 										<mainClass>com.proto.master.GeneratorMaster</mainClass>
-									</manifest>
-								</archive>
-							</configuration>
-						</execution>
-						<execution>
-							<id>slave</id>
-							<goals>
-								<goal>jar</goal>
-							</goals>
-							<phase>package</phase>
-							<configuration>
-								<classifier>slave</classifier>
-								<excludes>
-									<exclude>**/master/*</exclude>
-									<exclude>**/ui/*</exclude>
-								</excludes>
-								<archive>
-									<manifest>
-										<addClasspath>true</addClasspath>
-										<classpathPrefix>../lib/</classpathPrefix>
-										<mainClass>com.proto.slave.GeneratorSlave</mainClass>
 									</manifest>
 								</archive>
 							</configuration>
@@ -127,6 +107,9 @@
 								<excludes>
 									<exclude>**/master/*</exclude>
 									<exclude>**/slave/*</exclude>
+									<exclude>**/product/*</exclude>
+									<exclude>**/core/*</exclude>
+									<exclude>**/common/DBConnecter*</exclude>
 								</excludes>
 								<archive>
 									<manifest>

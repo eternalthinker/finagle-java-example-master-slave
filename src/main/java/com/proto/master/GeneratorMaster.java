@@ -44,6 +44,10 @@ import com.twitter.util.TimeoutException;
 import com.twitter.util.Try;
 import com.vizury.videocache.common.PropertyPlaceholder;
 
+/**
+ * @author rahul
+ *
+ */
 public class GeneratorMaster {
 
     // Begin inner helper classes

@@ -1,19 +1,14 @@
 package com.proto.ui;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLConnection;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
-import java.util.Collection;
 import java.util.Date;
 import java.util.Map;
-import java.util.concurrent.Executors;
 
 import javax.servlet.MultipartConfigElement;
 import javax.servlet.ServletException;
@@ -21,17 +16,13 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
 
-import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.handler.AbstractHandler;
-import org.eclipse.jetty.server.handler.ContextHandler;
-import org.eclipse.jetty.server.handler.ContextHandlerCollection;
-import org.eclipse.jetty.server.handler.HandlerList;
-import org.eclipse.jetty.server.handler.ResourceHandler;
 
 import com.google.common.base.Charsets;
 import com.google.common.io.ByteStreams;
+import com.google.common.io.CharStreams;
 import com.google.common.io.Files;
 import com.vizury.videocache.common.PropertyPlaceholder;
 
@@ -41,15 +32,15 @@ public class CampaignUploadHandler extends AbstractHandler {
             new MultipartConfigElement(System.getProperty("java.io.tmpdir"));
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd.HH.mm");
     private final String uploadDir;
-    
+
     public CampaignUploadHandler() {
-        String propertiesPath = "videogenmaster.properties";
+        String propertiesPath = "/videogenmaster.properties";
         PropertyPlaceholder propsHolder = new PropertyPlaceholder(propertiesPath);
         propsHolder.generatePropertyMap();
         Map<String, String> props = propsHolder.getPropertyMap();
         this.uploadDir = props.get("campaignProductListLocation");
     }
-    
+
 
     public void handle(String target, Request baseRequest, HttpServletRequest request,
             HttpServletResponse response) throws IOException, ServletException {
@@ -106,7 +97,7 @@ public class CampaignUploadHandler extends AbstractHandler {
             }
 
             content.append("<hr />");
-            
+
             // Optionally update the Master Video Generator service
             /*System.out.println("Sending data to Master..");
             URL url = new URL("http://localhost:8000/");
@@ -137,9 +128,11 @@ public class CampaignUploadHandler extends AbstractHandler {
 
 
         try {
-            content.append(Files.toString(new File("static/upload_form.html"), Charsets.UTF_8));
-        } catch (IOException e) {
-            e.printStackTrace();
+            InputStream in = getClass().getResourceAsStream("/static/upload_form.html");
+            final InputStreamReader inr = new InputStreamReader(in); 
+            content.append(CharStreams.toString(inr));
+        } catch (Exception e) {
+            System.out.println(e.getCause() + " : " + e.getMessage());
         }
 
         content.append("</body></html>");

@@ -143,7 +143,7 @@ class CampaignExecutor implements Runnable {
                         if (product.isValidProduct()) {
                             System.out.println(product.toString());
                             //Send to slave
-                            generateVideo();
+                            generateVideo(product);
                         }
                     }
                 }
@@ -152,10 +152,28 @@ class CampaignExecutor implements Runnable {
     } // End of run()
 
     
-    private void generateVideo() {
+    private void generateVideo(ProductDetail product) {
         JSONObject jReq = new JSONObject();
         //String jobID = UUID.randomUUID().toString();
         jReq.put("type", "command");
+        jReq.put("landing_page_url", product.getLandingPageUrl());
+        JSONArray products = new JSONArray();
+        // Add main product
+        JSONObject productInfo = new JSONObject();
+        productInfo.put("img_url", product.getCdnUrl());
+        productInfo.put("pname", product.getProductName());
+        productInfo.put("pid", product.getProductId());
+        products.add(productInfo);
+        // Add recommended products
+        for (ProductDetail recProduct : product.getRecommendedProduct()) {
+            JSONObject recProductInfo = new JSONObject();
+            recProductInfo.put("img_url", recProduct.getCdnUrl());
+            recProductInfo.put("pname", recProduct.getProductName());
+            recProductInfo.put("pid", recProduct.getProductId());
+            products.add(recProductInfo);
+        }
+        jReq.put("products", products);
+        
         HttpRequest request = createJsonRequest(jReq.toJSONString());
         Future<HttpResponse> slaveAckF = client.apply(request);
 

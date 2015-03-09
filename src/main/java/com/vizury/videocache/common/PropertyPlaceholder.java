@@ -23,8 +23,8 @@ public class PropertyPlaceholder {
     public PropertyPlaceholder(String filename) {
         props = new Properties();
         try {
-            //InputStream in = getClass().getResourceAsStream(filename);
-            InputStream in = new FileInputStream(filename);
+            InputStream in = getClass().getResourceAsStream(filename);
+            //InputStream in = new FileInputStream(filename);
             props.load(in);
             in.close();
         } catch (Exception e) {
