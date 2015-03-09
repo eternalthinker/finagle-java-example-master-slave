@@ -83,7 +83,7 @@
 							<configuration>
 								<classifier>master</classifier>
 								<excludes>
-									<exclude>**/slave/*</exclude>
+									<exclude>**/proto/*</exclude>
 									<exclude>**/ui/*</exclude>
 									<exclude>**/static/*</exclude>
 								</excludes>
@@ -91,7 +91,7 @@
 									<manifest>
 										<addClasspath>true</addClasspath>
 										<classpathPrefix>../lib/</classpathPrefix>
-										<mainClass>com.proto.master.GeneratorMaster</mainClass>
+										<mainClass>com.vizury.videocache.master.GeneratorMaster</mainClass>
 									</manifest>
 								</archive>
 							</configuration>
@@ -105,8 +105,8 @@
 							<configuration>
 								<classifier>ui</classifier>
 								<excludes>
+									<exclude>**/proto/*</exclude>
 									<exclude>**/master/*</exclude>
-									<exclude>**/slave/*</exclude>
 									<exclude>**/product/*</exclude>
 									<exclude>**/core/*</exclude>
 									<exclude>**/common/DBConnecter*</exclude>
@@ -115,7 +115,7 @@
 									<manifest>
 										<addClasspath>true</addClasspath>
 										<classpathPrefix>../lib/</classpathPrefix>
-										<mainClass>com.proto.ui.CampaignUploadHandler</mainClass>
+										<mainClass>com.vizury.videocache.ui.CampaignUploadHandler</mainClass>
 									</manifest>
 								</archive>
 							</configuration>
