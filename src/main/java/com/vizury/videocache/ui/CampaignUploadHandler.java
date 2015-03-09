@@ -1,4 +1,4 @@
-package com.proto.ui;
+package com.vizury.videocache.ui;
 
 import java.io.File;
 import java.io.IOException;

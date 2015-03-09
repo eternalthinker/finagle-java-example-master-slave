@@ -24,7 +24,7 @@ public class PropertyPlaceholder {
         props = new Properties();
         try {
             InputStream in = getClass().getResourceAsStream(filename);
-            //InputStream in = new FileInputStream(filename);
+            //InputStream in = new FileInputStream(filename); // For absolute paths
             props.load(in);
             in.close();
         } catch (Exception e) {

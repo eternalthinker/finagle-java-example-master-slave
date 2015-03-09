@@ -1,4 +1,4 @@
-package com.proto.master;
+package com.vizury.videocache.master;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -1,4 +1,4 @@
-package com.proto.master;
+package com.vizury.videocache.master;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -6,11 +6,9 @@ import java.net.InetSocketAddress;
 import java.util.Map;
 import java.util.Random;
 import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.eclipse.jetty.util.ajax.JSON;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
@@ -27,7 +25,6 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import scala.runtime.BoxedUnit;
 import scala.runtime.Nothing$;
 
 import com.twitter.finagle.Http;
@@ -43,11 +40,16 @@ import com.twitter.util.ExecutorServiceFuturePool;
 import com.twitter.util.Function0;
 import com.twitter.util.Future;
 import com.twitter.util.FutureEventListener;
-import com.twitter.util.Time;
 import com.twitter.util.TimeoutException;
 import com.twitter.util.Try;
+import com.vizury.videocache.common.PropertyPlaceholder;
+import com.vizury.videocache.core.VideoCache;
 
-public class GeneratorMasterZk {
+/**
+ * @author rahul
+ *
+ */
+public class GeneratorMaster {
 
     // Begin inner helper classes
     /**
@@ -143,17 +145,32 @@ public class GeneratorMasterZk {
     private Random rand = new Random(); // Only for testing, remove later
     private static final String SLAVE_REQ_PATH = "/genvid/";
     private static final String SLAVE_PORT = "5000";
-    
+
     private final int JOB_COUNT = 5;
     private final int SLAVE_THREADS = 5;
     private final int AVG_JOB_TIME = 10;
 
-    public GeneratorMasterZk() {
+    private PropertyPlaceholder propsHolder;
+    private ExecutorService videoCacheUpdatePool;
+    private Timer videoCacheUpdateTimer;    
+
+    public GeneratorMaster() {
         redisCache = new RedisCache("localhost", 7000);
+
+        String propertiesPath = "/videogenmaster.properties";
+        PropertyPlaceholder propsHolder = new PropertyPlaceholder(propertiesPath);
+        propsHolder.generatePropertyMap();
+        Map<String, String> props = propsHolder.getPropertyMap();
+
+        videoCacheUpdatePool = Executors.newFixedThreadPool(Integer.parseInt(props.get("maxThreads")));
+        videoCacheUpdateTimer = new Timer();
+        /*videoCacheUpdateTimer.schedule(new VideoCache(videoCacheUpdatePool, propsHolder, client), 
+                5000, 5000);*/
+
         stats = new Statistics();
-        
+
         RetryPolicy<Try<Nothing$>> retryPolicy = new SimpleRetryPolicy<Try<Nothing$>>() {
-            
+
             @Override
             public Duration backoffAt(int retryCount) {
                 if (retryCount > 3) {
@@ -167,10 +184,10 @@ public class GeneratorMasterZk {
                 return true;
             }
         };
-        
+
         ClientBuilder clientBuilder = ClientBuilder.get()
                 .codec(com.twitter.finagle.http.Http.get())
-                .retryPolicy(retryPolicy) // Retry forever, with exponential backoff
+                .retryPolicy(retryPolicy) // Retry forever, with exponential backoff <= 16
                 .hostConnectionLimit(500)
                 .hosts("localhost:" + SLAVE_PORT);
         client = ClientBuilder.safeBuild(clientBuilder);
@@ -319,14 +336,14 @@ public class GeneratorMasterZk {
     }
 
     public static void main(String[] args) {
-        GeneratorMasterZk masterServer = new GeneratorMasterZk();
+        GeneratorMaster masterServer = new GeneratorMaster();
 
         masterServer.startServer();
 
         // Starting the job assignment thread
         // Once this call is made, command requests are eventually sent out to slaves, 
         // and we can start expecting job status reports (not immediately in practice).
-        masterServer.generateAllVideos();
+        //masterServer.generateAllVideos();
 
         masterServer.awaitServer();
     }
