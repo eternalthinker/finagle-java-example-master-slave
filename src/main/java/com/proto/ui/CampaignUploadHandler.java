@@ -12,6 +12,8 @@ import java.net.URLConnection;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
+import java.util.Map;
+import java.util.concurrent.Executors;
 
 import javax.servlet.MultipartConfigElement;
 import javax.servlet.ServletException;
@@ -31,12 +33,23 @@ import org.eclipse.jetty.server.handler.ResourceHandler;
 import com.google.common.base.Charsets;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
+import com.vizury.videocache.common.PropertyPlaceholder;
 
 public class CampaignUploadHandler extends AbstractHandler {
 
     private static final MultipartConfigElement MULTI_PART_CONFIG = 
             new MultipartConfigElement(System.getProperty("java.io.tmpdir"));
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd.HH.mm");
+    private final String uploadDir;
+    
+    public CampaignUploadHandler() {
+        String propertiesPath = "videogenmaster.properties";
+        PropertyPlaceholder propsHolder = new PropertyPlaceholder(propertiesPath);
+        propsHolder.generatePropertyMap();
+        Map<String, String> props = propsHolder.getPropertyMap();
+        this.uploadDir = props.get("campaignProductListLocation");
+    }
+    
 
     public void handle(String target, Request baseRequest, HttpServletRequest request,
             HttpServletResponse response) throws IOException, ServletException {
@@ -61,7 +74,8 @@ public class CampaignUploadHandler extends AbstractHandler {
             content.append("Details of submitted campaign: " + campId + "<br> ");
 
             Date now = new Date();
-            String dirName = dateFormat.format(now);
+            String dirName = uploadDir + "/" + dateFormat.format(now);
+            dirName = uploadDir;
 
             File destDir = new File(dirName);
             if (! destDir.exists()) {
@@ -76,6 +90,7 @@ public class CampaignUploadHandler extends AbstractHandler {
             if (pidFilePart.getSize() > 0) {
                 System.out.println("Saving pid file..");
                 InputStream fileStream = pidFilePart.getInputStream(); 
+                // Write to temp file ?
                 File dest = new File(dirName + "/" + campId + "_pid.txt");
                 ByteStreams.copy(fileStream, Files.newOutputStreamSupplier(dest));
                 content.append("Saved pid file.<br> ");

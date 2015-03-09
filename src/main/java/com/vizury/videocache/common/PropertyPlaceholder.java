@@ -5,29 +5,35 @@
  */
 package com.vizury.videocache.common;
 
-import java.io.IOException;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.Properties;
-import org.springframework.beans.factory.config.PropertyPlaceholderConfigurer;
 
 /**
  *
  * @author sankalpkulshrestha
  */
-public class PropertyPlaceholder extends PropertyPlaceholderConfigurer {
+public class PropertyPlaceholder {
 
-    Properties props;
     private HashMap<String, String> propertyMap;
-
-    @Override
-    protected Properties mergeProperties() throws IOException {
-        props = super.mergeProperties();
-        return props;
+    private Properties props = null;
+    
+    public PropertyPlaceholder(String filename) {
+        props = new Properties();
+        try {
+            //InputStream in = getClass().getResourceAsStream(filename);
+            InputStream in = new FileInputStream(filename);
+            props.load(in);
+            in.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public void generatePropertyMap() {
-        propertyMap = new HashMap();
+        propertyMap = new HashMap<String, String>();
         for (Entry<Object, Object> e : props.entrySet()) {
             getPropertyMap().put((String) e.getKey(), (String) e.getValue());
         }
@@ -39,6 +45,5 @@ public class PropertyPlaceholder extends PropertyPlaceholderConfigurer {
     public HashMap<String, String> getPropertyMap() {
         return propertyMap;
     }
-    
     
 }

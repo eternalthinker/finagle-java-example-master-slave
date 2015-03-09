@@ -5,6 +5,11 @@
  */
 package com.vizury.videocache.core;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import com.twitter.finagle.Service;
+import com.twitter.util.Future;
+import com.twitter.util.FutureEventListener;
 import com.vizury.videocache.common.DBConnecter;
 import com.vizury.videocache.product.ProductDetail;
 import com.vizury.videocache.product.ProductReader;
@@ -16,7 +21,19 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
+import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
+import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
+import org.jboss.netty.handler.codec.http.HttpHeaders;
+import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import redis.clients.jedis.Jedis;
@@ -33,11 +50,14 @@ class CampaignExecutor implements Runnable {
     private final String campaignId;
     private final HashMap<String, String> propertyMap;
     private final JedisPool jedisPool;
+    private Service<HttpRequest, HttpResponse> client;
 
-    public CampaignExecutor(String campaignId, HashMap<String, String> propertyMap, JedisPool jedisPool) {
+    public CampaignExecutor(String campaignId, HashMap<String, String> propertyMap, 
+            JedisPool jedisPool, Service<HttpRequest, HttpResponse> client) {
         this.campaignId = campaignId;
         this.propertyMap = propertyMap;
         this.jedisPool = jedisPool;
+        this.client = client;
     }
 
     @Override
@@ -123,10 +143,41 @@ class CampaignExecutor implements Runnable {
                         if (product.isValidProduct()) {
                             System.out.println(product.toString());
                             //Send to slave
+                            generateVideo();
                         }
                     }
                 }
             }
         }
+    } // End of run()
+
+    
+    private void generateVideo() {
+        JSONObject jReq = new JSONObject();
+        //String jobID = UUID.randomUUID().toString();
+        jReq.put("type", "command");
+        HttpRequest request = createJsonRequest(jReq.toJSONString());
+        Future<HttpResponse> slaveAckF = client.apply(request);
+
+        slaveAckF.addEventListener(new FutureEventListener<HttpResponse>() {
+            public void onFailure(Throwable e) {
+                System.out.println(e.getCause() + " : " + e.getMessage());
+            }
+
+            public void onSuccess(HttpResponse response) {
+                System.out.println("[GeneratorMaster] Job ack received for job");
+            }
+        });
     }
+    
+
+    private HttpRequest createJsonRequest(String content) {
+        HttpRequest request = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.POST, "/genvid/");
+        ChannelBuffer buffer = ChannelBuffers.copiedBuffer(content, UTF_8);
+        request.setContent(buffer);
+        request.setHeader(HttpHeaders.Names.CONTENT_TYPE, "application/json; charset=UTF-8");
+        request.setHeader(HttpHeaders.Names.CONTENT_LENGTH, buffer.readableBytes());
+        return request;
+    }
+    
 }

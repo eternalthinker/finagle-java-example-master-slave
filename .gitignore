@@ -2,6 +2,9 @@
 video/
 pid/
 
+# Temp files
+*~
+
 # Eclipse
 .classpath
 .project

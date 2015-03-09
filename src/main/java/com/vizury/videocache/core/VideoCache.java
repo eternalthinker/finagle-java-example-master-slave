@@ -5,36 +5,60 @@
  */
 package com.vizury.videocache.core;
 
-import com.vizury.videocache.common.PropertyPlaceholder;
-import com.vizury.videocache.product.ProductReader;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import java.util.TimerTask;
+import java.util.concurrent.ExecutorService;
+
+import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+
 import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
+
+import com.twitter.finagle.Service;
+import com.vizury.videocache.common.PropertyPlaceholder;
+import com.vizury.videocache.product.ProductFileReader;
+import com.vizury.videocache.product.ProductReader;
 
 /**
  *
  * @author sankalpkulshrestha
  */
-public class VideoCache {
+public class VideoCache extends TimerTask {
 
     private final ProductReader productReader;
-    private final ThreadPoolTaskExecutor taskExecutor;
-    private final PropertyPlaceholder propertyMap;
+    private final ExecutorService pool;
+    private final PropertyPlaceholder propsHolder;
     private final JedisPool jedisPool;
+    private Service<HttpRequest, HttpResponse> client;
 
-    public VideoCache(ProductReader productReader, ThreadPoolTaskExecutor taskExecutor, PropertyPlaceholder propertyMap, JedisPool jedisPool) {
-        this.productReader = productReader;
-        this.taskExecutor = taskExecutor;
-        this.propertyMap = propertyMap;
-        this.jedisPool = jedisPool;
-        propertyMap.generatePropertyMap();
+    public VideoCache(ExecutorService pool, PropertyPlaceholder propsHolder, Service<HttpRequest, HttpResponse> client) {
+        this.pool = pool;
+        this.client = client;
+        this.propsHolder = propsHolder;
+        propsHolder.generatePropertyMap();
+        
+        this.productReader = new ProductFileReader(propsHolder.getPropertyMap().get("campaignProductListLocation"));
+       
+        JedisPoolConfig jedisConfig = new JedisPoolConfig();
+        jedisConfig.setMaxTotal(Integer.parseInt(propsHolder.getPropertyMap().get("maxJedisPoolSize")));
+        jedisConfig.setTestOnBorrow(true);
+        jedisConfig.setLifo(false);
+        String redisHost = propsHolder.getPropertyMap().get("redisServer");
+        int redisPort = Integer.parseInt(propsHolder.getPropertyMap().get("redisPort"));
+        this.jedisPool = new JedisPool(jedisConfig, redisHost, redisPort);
     }
 
     public void refreshCache() {
         String[] campaignList = productReader.getCampaignList();
         if (campaignList != null) {
             for (String campaignId : campaignList) {
-                taskExecutor.execute(new CampaignExecutor(campaignId, propertyMap.getPropertyMap(), jedisPool));
+                pool.execute(new CampaignExecutor(campaignId, propsHolder.getPropertyMap(), jedisPool, client));
             }
         }
+    }
+
+    @Override
+    public void run() {
+        refreshCache();
     }
 }
