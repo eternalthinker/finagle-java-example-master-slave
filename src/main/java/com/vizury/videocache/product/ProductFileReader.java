@@ -33,7 +33,7 @@ public class ProductFileReader implements ProductReader {
     @Override
     public List<ProductDetail> getProductDetailList(String campaignId) {
         List<ProductDetail> list = new ArrayList();
-        File campaignFile = new File(directory + campaignId+".txt");
+        File campaignFile = new File(directory + campaignId + "_pid.txt");
         try {
             BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(campaignFile), "UTF-8"));
             String line;
@@ -65,14 +65,16 @@ public class ProductFileReader implements ProductReader {
             }
         };
         File[] listOfCampaignFiles = folder.listFiles(filter);
-        String[] campaign = null;
+        String[] campaigns = null;
         if (listOfCampaignFiles.length != 0) {
-            campaign = new String[listOfCampaignFiles.length];
+            campaigns = new String[listOfCampaignFiles.length];
             int index = 0;
             for (File file : listOfCampaignFiles) {
-                campaign[index++] = file.getName().replaceFirst("[.][^.]+$", "");
+                //String campaignId = file.getName().replaceFirst("[.][^.]+$", "");
+                String campaignId = file.getName().split("_")[0];
+                campaigns[index++] = campaignId;
             }
         }
-        return campaign;
+        return campaigns;
     }
 }

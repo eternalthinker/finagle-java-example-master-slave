@@ -63,7 +63,6 @@ public class GeneratorMaster {
             //System.out.println("[GeneratorMaster] Request received: " + reqContent);
 
             // Parsing JSON request
-            // Creating parser for each request, as static parser seem to throw error on consecutive requests
             JSONParser jsonParser = new JSONParser();
             JSONObject jReq = null;
             try {

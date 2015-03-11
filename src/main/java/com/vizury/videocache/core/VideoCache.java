@@ -51,8 +51,9 @@ public class VideoCache extends TimerTask {
     public void refreshCache() {
         String[] campaignList = productReader.getCampaignList();
         if (campaignList != null) {
+            Integer i = 1;
             for (String campaignId : campaignList) {
-                pool.execute(new CampaignExecutor(campaignId, propsHolder.getPropertyMap(), jedisPool, client));
+                pool.execute(new CampaignExecutor(campaignId, propsHolder.getPropertyMap(), jedisPool, client, i++));
             }
         }
     }

@@ -7,39 +7,36 @@ package com.vizury.videocache.core;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBuffers;
+import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
+import org.jboss.netty.handler.codec.http.HttpHeaders;
+import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpRequest;
+import org.jboss.netty.handler.codec.http.HttpResponse;
+import org.jboss.netty.handler.codec.http.HttpVersion;
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.Pipeline;
+import redis.clients.jedis.Response;
+
 import com.twitter.finagle.Service;
 import com.twitter.util.Future;
 import com.twitter.util.FutureEventListener;
 import com.vizury.videocache.common.DBConnecter;
 import com.vizury.videocache.product.ProductDetail;
-import com.vizury.videocache.product.ProductReader;
-import java.util.List;
 import com.vizury.videocache.product.ProductFileReader;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import org.jboss.netty.buffer.ChannelBuffer;
-import org.jboss.netty.buffer.ChannelBuffers;
-import org.jboss.netty.handler.codec.http.DefaultHttpRequest;
-import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
-import org.jboss.netty.handler.codec.http.HttpHeaders;
-import org.jboss.netty.handler.codec.http.HttpMethod;
-import org.jboss.netty.handler.codec.http.HttpRequest;
-import org.jboss.netty.handler.codec.http.HttpResponse;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
-import org.jboss.netty.handler.codec.http.HttpVersion;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.Response;
+import com.vizury.videocache.product.ProductReader;
 
 /**
  *
@@ -51,13 +48,15 @@ class CampaignExecutor implements Runnable {
     private final HashMap<String, String> propertyMap;
     private final JedisPool jedisPool;
     private Service<HttpRequest, HttpResponse> client;
+    private Integer threadId;
 
     public CampaignExecutor(String campaignId, HashMap<String, String> propertyMap, 
-            JedisPool jedisPool, Service<HttpRequest, HttpResponse> client) {
+            JedisPool jedisPool, Service<HttpRequest, HttpResponse> client, Integer threadId) {
         this.campaignId = campaignId;
         this.propertyMap = propertyMap;
         this.jedisPool = jedisPool;
         this.client = client;
+        this.threadId = threadId;
     }
 
     @Override
@@ -152,11 +151,15 @@ class CampaignExecutor implements Runnable {
     } // End of run()
 
     
+    @SuppressWarnings("unchecked")
     private void generateVideo(ProductDetail product) {
         JSONObject jReq = new JSONObject();
-        //String jobID = UUID.randomUUID().toString();
         jReq.put("type", "command");
+        String jobID = threadId.toString() + "." + UUID.randomUUID().toString();
+        jReq.put("job_id", jobID);
         jReq.put("landing_page_url", product.getLandingPageUrl());
+        jReq.put("video_url", propertyMap.get("campaignProductListLocation"));
+        jReq.put("campaign_id", campaignId);
         JSONArray products = new JSONArray();
         // Add main product
         JSONObject productInfo = new JSONObject();
